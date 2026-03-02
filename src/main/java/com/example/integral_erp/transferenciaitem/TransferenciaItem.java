@@ -1,5 +1,6 @@
 package com.example.integral_erp.transferenciaitem;
 
+import com.example.integral_erp.common.Auditavel;
 import com.example.integral_erp.produto.Produto;
 import com.example.integral_erp.transferencia.Transferencia;
 
@@ -17,7 +18,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Table(name = "transferencia_item")
-public class TransferenciaItem {
+public class TransferenciaItem extends Auditavel{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

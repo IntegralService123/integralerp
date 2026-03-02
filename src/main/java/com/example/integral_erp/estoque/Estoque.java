@@ -1,6 +1,7 @@
 package com.example.integral_erp.estoque;
 
 import com.example.integral_erp.centrodistribuicao.CentroDistribuicao;
+import com.example.integral_erp.common.Auditavel;
 import com.example.integral_erp.produto.Produto;
 
 import jakarta.persistence.Entity;
@@ -19,7 +20,7 @@ import lombok.Setter;
 @Setter
 @Table(name = "estoque",
        uniqueConstraints = @UniqueConstraint(columnNames = {"produto_id", "centro_id"}))
-public class Estoque {
+public class Estoque extends Auditavel{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.example.integral_erp.centrodistribuicao.CentroDistribuicao;
+import com.example.integral_erp.common.Auditavel;
 import com.example.integral_erp.enums.StatusTransferencia;
 import com.example.integral_erp.transferenciaitem.TransferenciaItem;
 
@@ -28,7 +29,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "transferencia")
-public class Transferencia {
+public class Transferencia extends Auditavel{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
