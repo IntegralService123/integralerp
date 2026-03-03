@@ -3,6 +3,7 @@ package com.example.integral_erp.venda;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,9 +12,11 @@ import com.example.integral_erp.centrodistribuicao.CentroDistribuicaoRepository;
 import com.example.integral_erp.enums.StatusVenda;
 import com.example.integral_erp.estoque.EstoqueRepository;
 import com.example.integral_erp.produto.ProdutoRepository;
+import com.example.integral_erp.venda.dto.VendaDetalhadaResponse;
 import com.example.integral_erp.venda.dto.VendaRequest;
 import com.example.integral_erp.venda.dto.VendaResponse;
 import com.example.integral_erp.vendaitem.VendaItem;
+import com.example.integral_erp.vendaitem.dto.VendaItemResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -135,4 +138,45 @@ public class VendaService {
 
         vendaRepository.save(venda);
     }
+
+    @Transactional(readOnly = true)
+    public List<VendaDetalhadaResponse> listar() {
+
+        return vendaRepository.findAll()
+                .stream()
+                .map(this::toVendaDetalhadaResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public VendaDetalhadaResponse buscarPorId(Long id) {
+
+        var venda = vendaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
+
+        return toVendaDetalhadaResponse(venda);
+    }
+
+    private VendaDetalhadaResponse toVendaDetalhadaResponse(Venda venda) {
+
+    var itens = venda.getItens().stream()
+            .map(item -> new VendaItemResponse(
+                    item.getProduto().getId(),
+                    item.getProduto().getNome(),
+                    item.getQuantidade(),
+                    item.getValorUnitario(),
+                    item.getSubtotal()
+            ))
+            .toList();
+
+    return new VendaDetalhadaResponse(
+            venda.getId(),
+            venda.getCentro().getId(),
+            venda.getCentro().getNome(),
+            venda.getStatus(),
+            venda.getDataVenda(),
+            venda.getValorTotal(),
+            itens
+    );
+}
 }
