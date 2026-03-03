@@ -1,6 +1,7 @@
 package com.example.integral_erp.venda;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
@@ -92,11 +93,17 @@ public class VendaService {
             throw new RuntimeException("Venda já está cancelada");
         }
 
+        if (venda.getStatus() == StatusVenda.FATURADA) {
+            throw new RuntimeException("Venda faturada não pode ser cancelada");
+        }
+
+        if (!venda.getDataVenda().toLocalDate().equals(LocalDate.now())) {
+            throw new RuntimeException("Venda só pode ser cancelada no mesmo dia");
+        }
+
         for (var item : venda.getItens()) {
 
-            var produto = item.getProduto();
-
-            var estoque = estoqueRepository.findByProdutoIdAndCentroId(produto.getId(), venda.getCentro().getId())
+            var estoque = estoqueRepository.findByProdutoIdAndCentroId(item.getProduto().getId(), venda.getCentro().getId())
                     .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
 
             // Devolve estoque
@@ -106,6 +113,25 @@ public class VendaService {
         }
 
         venda.setStatus(StatusVenda.CANCELADA);
+
+        vendaRepository.save(venda);
+    }
+
+    @Transactional
+    public void faturar(Long vendaId) {
+
+        var venda = vendaRepository.findById(vendaId)
+            .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
+
+        if (venda.getStatus() == StatusVenda.CANCELADA) {
+            throw new RuntimeException("Venda cancelada não pode ser faturada");
+        }
+
+        if (venda.getStatus() == StatusVenda.FATURADA) {
+            throw new RuntimeException("Venda já está faturada");
+        }
+
+        venda.setStatus(StatusVenda.FATURADA);
 
         vendaRepository.save(venda);
     }

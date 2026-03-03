@@ -32,4 +32,11 @@ public class VendaController {
         vendaService.cancelar(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/faturar")
+    public ResponseEntity<Void> faturar(@PathVariable Long id) {
+
+        vendaService.faturar(id);
+        return ResponseEntity.noContent().build();
+    }
 }
