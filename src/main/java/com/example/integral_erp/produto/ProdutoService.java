@@ -7,7 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integral_erp.categoria.CategoriaRepository;
 import com.example.integral_erp.produto.dto.ProdutoRequest;
-import com.example.integral_erp.produto.dto.ProdutoResponse;
+import com.example.integral_erp.produto.dto.ProdutoResponseAdminDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,7 +19,7 @@ public class ProdutoService {
     private final ProdutoRepository produtoRepository;
 
     @Transactional
-    public ProdutoResponse criar(ProdutoRequest request) {
+    public ProdutoResponseAdminDTO criar(ProdutoRequest request) {
 
         var categoria = categoriaRepository.findById(request.categoriaId())
             .orElseThrow(() -> new RuntimeException("Produto não encontrada"));
@@ -37,7 +37,7 @@ public class ProdutoService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProdutoResponse> listar() {
+    public List<ProdutoResponseAdminDTO> listar() {
         return produtoRepository.findAll()
                 .stream()
                 .map(this::toResponse)
@@ -45,7 +45,7 @@ public class ProdutoService {
     }
 
     @Transactional(readOnly = true)
-    public ProdutoResponse buscarPorId(Long id) {
+    public ProdutoResponseAdminDTO buscarPorId(Long id) {
 
         var produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Categoria não encontrada"));
@@ -54,7 +54,7 @@ public class ProdutoService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProdutoResponse> listarPorCategoria(Long categoriaId) {
+    public List<ProdutoResponseAdminDTO> listarPorCategoria(Long categoriaId) {
 
         return produtoRepository.findByCategoria_Id(categoriaId)
             .stream()
@@ -62,9 +62,9 @@ public class ProdutoService {
             .toList();
     }
 
-    private ProdutoResponse toResponse(Produto produto) {
+    private ProdutoResponseAdminDTO toResponse(Produto produto) {
         
-        return new ProdutoResponse(
+        return new ProdutoResponseAdminDTO(
             produto.getId(),
             produto.getNome(),
             produto.getDescricao(),

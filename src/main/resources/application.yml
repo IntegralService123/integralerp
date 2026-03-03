@@ -10,3 +10,11 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: 7200000 # 2 horas em ms
+
+  usuarioadmin:
+    email: ${ADMIN_EMAIL}
+    password: ${ADMIN_PASSWORD}

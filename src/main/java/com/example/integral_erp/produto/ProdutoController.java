@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.integral_erp.produto.dto.ProdutoRequest;
-import com.example.integral_erp.produto.dto.ProdutoResponse;
+import com.example.integral_erp.produto.dto.ProdutoResponseAdminDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,24 +23,24 @@ public class ProdutoController {
     private final ProdutoService produtoService;
 
     @PostMapping
-    public ResponseEntity<ProdutoResponse> criar(
+    public ResponseEntity<ProdutoResponseAdminDTO> criar(
             @RequestBody ProdutoRequest request) {
 
         return ResponseEntity.ok(produtoService.criar(request));
     }
 
     @GetMapping
-    public ResponseEntity<List<ProdutoResponse>> listar() {
+    public ResponseEntity<List<ProdutoResponseAdminDTO>> listar() {
         return ResponseEntity.ok(produtoService.listar());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProdutoResponse> buscar(@PathVariable Long id) {
+    public ResponseEntity<ProdutoResponseAdminDTO> buscar(@PathVariable Long id) {
         return ResponseEntity.ok(produtoService.buscarPorId(id));
     }
 
     @GetMapping("/categoria/{categoriaId}")
-    public ResponseEntity<List<ProdutoResponse>> listarPorCategoria(
+    public ResponseEntity<List<ProdutoResponseAdminDTO>> listarPorCategoria(
             @PathVariable Long categoriaId) {
 
         return ResponseEntity.ok(

@@ -1,6 +1,6 @@
 package com.example.integral_erp.produto.dto;
 
-public record ProdutoResponse(
+public record ProdutoResponseAdminDTO(
         Long id,
         String nome,
         String descricao,
