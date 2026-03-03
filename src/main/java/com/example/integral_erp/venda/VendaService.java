@@ -1,0 +1,84 @@
+package com.example.integral_erp.venda;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.integral_erp.centrodistribuicao.CentroDistribuicaoRepository;
+import com.example.integral_erp.enums.StatusVenda;
+import com.example.integral_erp.estoque.EstoqueRepository;
+import com.example.integral_erp.produto.ProdutoRepository;
+import com.example.integral_erp.venda.dto.VendaRequest;
+import com.example.integral_erp.venda.dto.VendaResponse;
+import com.example.integral_erp.vendaitem.VendaItem;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class VendaService {
+
+    private final CentroDistribuicaoRepository centroDistribuicaoRepository;
+    private final ProdutoRepository produtoRepository;
+    private final EstoqueRepository estoqueRepository;
+    private final VendaRepository vendaRepository;
+
+    @Transactional
+    public VendaResponse criar (VendaRequest request) {
+
+        var centro = centroDistribuicaoRepository.findById(request.centroId())
+            .orElseThrow(() -> new RuntimeException("Centro não encontrado"));
+            
+        var venda = new Venda();
+        venda.setCentro(centro);
+        venda.setStatus(StatusVenda.FINALIZADA);
+        venda.setDataVenda(LocalDateTime.now());
+
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (var itemRequest : request.itens()) {
+
+            var produto = produtoRepository.findById(itemRequest.produtoId())
+                .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+
+            var estoque = estoqueRepository.findByProdutoIdAndCentroId(produto.getId(), centro.getId())
+                .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
+
+            if (estoque.getQuantidade() < itemRequest.quantidade()) {
+                throw new RuntimeException("Estoque insuficiente para produto: " + produto.getNome());
+            }
+
+            //Debita estoque
+            estoque.setQuantidade(estoque.getQuantidade() - itemRequest.quantidade());
+
+            estoqueRepository.save(estoque);
+
+            var item = new VendaItem();
+            item.setVenda(venda);
+            item.setProduto(produto);
+            item.setQuantidade(itemRequest.quantidade());
+            item.setValorUnitario(produto.getPreco());
+
+            var subtotal = produto.getPreco().multiply(BigDecimal.valueOf(itemRequest.quantidade()));
+
+            item.setSubtotal(subtotal);
+
+            venda.getItens().add(item);
+
+            total = total.add(subtotal);
+        }
+
+        venda.setValorTotal(total);
+
+        venda = vendaRepository.save(venda);
+
+        return new VendaResponse(
+            venda.getId(),
+            centro.getId(),
+            venda.getStatus(),
+            venda.getValorTotal()
+        );
+    }
+}
