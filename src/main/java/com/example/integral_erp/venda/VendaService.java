@@ -81,4 +81,32 @@ public class VendaService {
             venda.getValorTotal()
         );
     }
+
+    @Transactional
+    public void cancelar(Long vendaId) {
+
+        var venda = vendaRepository.findById(vendaId)
+                .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
+
+        if (venda.getStatus() == StatusVenda.CANCELADA) {
+            throw new RuntimeException("Venda já está cancelada");
+        }
+
+        for (var item : venda.getItens()) {
+
+            var produto = item.getProduto();
+
+            var estoque = estoqueRepository.findByProdutoIdAndCentroId(produto.getId(), venda.getCentro().getId())
+                    .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
+
+            // Devolve estoque
+            estoque.setQuantidade(estoque.getQuantidade() + item.getQuantidade());
+
+            estoqueRepository.save(estoque);
+        }
+
+        venda.setStatus(StatusVenda.CANCELADA);
+
+        vendaRepository.save(venda);
+    }
 }
