@@ -3,13 +3,22 @@ spring:
     import: optional:file:.env[.properties]
 
   application:
-    name: integralservice
+    name: integral-erp
 
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
 
   jwt:
     secret: ${JWT_SECRET}

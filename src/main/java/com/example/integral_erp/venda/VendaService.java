@@ -5,10 +5,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integral_erp.centrodistribuicao.CentroDistribuicaoRepository;
+import com.example.integral_erp.config.SecurityUtils;
+import com.example.integral_erp.enums.Role;
 import com.example.integral_erp.enums.StatusVenda;
 import com.example.integral_erp.estoque.EstoqueRepository;
 import com.example.integral_erp.produto.ProdutoRepository;
@@ -32,7 +35,9 @@ public class VendaService {
     @Transactional
     public VendaResponse criar (VendaRequest request) {
 
-        var centro = centroDistribuicaoRepository.findById(request.centroId())
+        Long centroId = SecurityUtils.getCentroId();
+
+        var centro = centroDistribuicaoRepository.findById(centroId)
             .orElseThrow(() -> new RuntimeException("Centro não encontrado"));
             
         var venda = new Venda();
@@ -92,6 +97,8 @@ public class VendaService {
         var venda = vendaRepository.findById(vendaId)
                 .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
 
+        validarAcessoPorCentro(venda);
+
         if (venda.getStatus() == StatusVenda.CANCELADA) {
             throw new RuntimeException("Venda já está cancelada");
         }
@@ -126,6 +133,8 @@ public class VendaService {
         var venda = vendaRepository.findById(vendaId)
             .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
 
+        validarAcessoPorCentro(venda);
+
         if (venda.getStatus() == StatusVenda.CANCELADA) {
             throw new RuntimeException("Venda cancelada não pode ser faturada");
         }
@@ -142,8 +151,23 @@ public class VendaService {
     @Transactional(readOnly = true)
     public List<VendaDetalhadaResponse> listar() {
 
-        return vendaRepository.findAll()
-                .stream()
+        Role role = SecurityUtils.getRole();
+
+        List<Venda> vendas;
+
+        if (role == Role.BASE_ADMIN) {
+            vendas = vendaRepository.findAll();
+        } else {
+            Long centroId = SecurityUtils.getCentroId();
+
+            if (centroId == null) {
+                throw new RuntimeException("Usuário sem centro associado");
+            }
+
+            vendas = vendaRepository.findByCentroId(centroId);
+        }
+
+        return vendas.stream()
                 .map(this::toVendaDetalhadaResponse)
                 .toList();
     }
@@ -152,9 +176,28 @@ public class VendaService {
     public VendaDetalhadaResponse buscarPorId(Long id) {
 
         var venda = vendaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
+            .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
+
+        validarAcessoPorCentro(venda);
 
         return toVendaDetalhadaResponse(venda);
+    }
+
+    private void validarAcessoPorCentro(Venda venda) {
+
+        Role role = SecurityUtils.getRole();
+
+        if (role == Role.BASE_ADMIN) {
+            return;
+        }
+
+        Long centroId = SecurityUtils.getCentroId();
+
+        if (centroId == null ||
+            !venda.getCentro().getId().equals(centroId)) {
+
+            throw new AccessDeniedException("Acesso negado");
+        }
     }
 
     private VendaDetalhadaResponse toVendaDetalhadaResponse(Venda venda) {
@@ -169,7 +212,7 @@ public class VendaService {
             ))
             .toList();
 
-    return new VendaDetalhadaResponse(
+        return new VendaDetalhadaResponse(
             venda.getId(),
             venda.getCentro().getId(),
             venda.getCentro().getNome(),
@@ -177,6 +220,6 @@ public class VendaService {
             venda.getDataVenda(),
             venda.getValorTotal(),
             itens
-    );
-}
+        );
+    }
 }
