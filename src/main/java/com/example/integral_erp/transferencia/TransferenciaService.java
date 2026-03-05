@@ -8,7 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integral_erp.centrodistribuicao.*;
+import com.example.integral_erp.config.SecurityUtils;
 import com.example.integral_erp.enums.StatusTransferencia;
+import com.example.integral_erp.enums.TipoMovimentacao;
 import com.example.integral_erp.estoque.*;
 import com.example.integral_erp.exception.CentroDestinoNaoEncontradoException;
 import com.example.integral_erp.exception.CentroOrigemNaoEncontradoException;
@@ -19,6 +21,7 @@ import com.example.integral_erp.exception.ProdutoNaoEncontradoException;
 import com.example.integral_erp.exception.SomenteTransferenciaCriadaPodeSerCanceladaException;
 import com.example.integral_erp.exception.TransferenciaConfirmadaOuCanceladaException;
 import com.example.integral_erp.exception.TransferenciaNaoEncontradaException;
+import com.example.integral_erp.movimentacaoestoque.MovimentacaoEstoque;
 import com.example.integral_erp.produto.*;
 import com.example.integral_erp.transferencia.dto.TransferenciaRequest;
 import com.example.integral_erp.transferencia.dto.TransferenciaResponse;
@@ -81,6 +84,16 @@ public class TransferenciaService {
             item.setQuantidade(itemRequest.quantidade());
 
             itemRepository.save(item);
+
+            transferencia.getItens().add(item);
+
+            MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
+            movimentacao.setProduto(produto);
+            movimentacao.setCentro(origem);
+            movimentacao.setTipo(TipoMovimentacao.SAIDA_TRANSFERENCIA);
+            movimentacao.setQuantidade(itemRequest.quantidade());
+            movimentacao.setReferenciaId(transferencia.getId());
+            movimentacao.setUsuario(SecurityUtils.getUsuarioLogado());
         }
     
         return transferencia;
@@ -117,6 +130,9 @@ public class TransferenciaService {
 
         transferencia.setStatus(StatusTransferencia.RECEBIDA);
         transferenciaRepository.save(transferencia);
+
+        MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
+        movimentacao.setTipo(TipoMovimentacao.ENTRADA_TRANSFERENCIA);
     }
 
     public void cancelarTransferencia (Long transferenciaId) {
@@ -147,6 +163,9 @@ public class TransferenciaService {
 
         transferencia.setStatus(StatusTransferencia.CANCELADA);
         transferenciaRepository.save(transferencia);
+
+        MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
+        movimentacao.setTipo(TipoMovimentacao.ESTORNO_TRANSFERENCIA);
     }
 
     @Transactional(readOnly = true)

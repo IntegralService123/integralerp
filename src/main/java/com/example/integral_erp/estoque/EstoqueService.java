@@ -2,6 +2,7 @@ package com.example.integral_erp.estoque;
 
 import java.util.List;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +40,15 @@ public class EstoqueService {
 
     @Transactional(readOnly = true)
     public List<EstoqueResponse> listarPorCentro(Long centroId) {
+
+        if (SecurityUtils.getRole() != Role.BASE_ADMIN) {
+
+            Long centroUsuario = SecurityUtils.getCentroId();
+
+            if (!centroUsuario.equals(centroId)) {
+                throw new AccessDeniedException("Acesso negado.");
+            }
+        }
 
         return estoqueRepository.findByCentroId(centroId).stream()
             .map(this::toResponse)
