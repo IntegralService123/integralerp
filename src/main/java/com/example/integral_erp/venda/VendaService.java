@@ -14,6 +14,16 @@ import com.example.integral_erp.config.SecurityUtils;
 import com.example.integral_erp.enums.Role;
 import com.example.integral_erp.enums.StatusVenda;
 import com.example.integral_erp.estoque.EstoqueRepository;
+import com.example.integral_erp.exception.CentroNaoEncontradoException;
+import com.example.integral_erp.exception.EstoqueInsuficienteException;
+import com.example.integral_erp.exception.EstoqueNaoEncontradoException;
+import com.example.integral_erp.exception.ProdutoNaoEncontradoException;
+import com.example.integral_erp.exception.UsuarioSemCentroException;
+import com.example.integral_erp.exception.VendaCanceladaNaoPodeSerFaturadaException;
+import com.example.integral_erp.exception.VendaForaDoPrazoCancelamentoException;
+import com.example.integral_erp.exception.VendaJaCanceladaException;
+import com.example.integral_erp.exception.VendaJaFaturadaException;
+import com.example.integral_erp.exception.VendaNaoEncontradaException;
 import com.example.integral_erp.produto.ProdutoRepository;
 import com.example.integral_erp.venda.dto.VendaDetalhadaResponse;
 import com.example.integral_erp.venda.dto.VendaRequest;
@@ -38,7 +48,7 @@ public class VendaService {
         Long centroId = SecurityUtils.getCentroId();
 
         var centro = centroDistribuicaoRepository.findById(centroId)
-            .orElseThrow(() -> new RuntimeException("Centro não encontrado"));
+            .orElseThrow(() -> new CentroNaoEncontradoException(centroId));
             
         var venda = new Venda();
         venda.setCentro(centro);
@@ -50,13 +60,13 @@ public class VendaService {
         for (var itemRequest : request.itens()) {
 
             var produto = produtoRepository.findById(itemRequest.produtoId())
-                .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+                .orElseThrow(() -> new ProdutoNaoEncontradoException(itemRequest.produtoId()));
 
             var estoque = estoqueRepository.findByProdutoIdAndCentroId(produto.getId(), centro.getId())
-                .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
+                .orElseThrow(() -> new EstoqueNaoEncontradoException(centro.getNome()));
 
             if (estoque.getQuantidade() < itemRequest.quantidade()) {
-                throw new RuntimeException("Estoque insuficiente para produto: " + produto.getNome());
+                throw new EstoqueInsuficienteException();
             }
 
             //Debita estoque
@@ -95,26 +105,26 @@ public class VendaService {
     public void cancelar(Long vendaId) {
 
         var venda = vendaRepository.findById(vendaId)
-                .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
+                .orElseThrow(() -> new VendaNaoEncontradaException(vendaId));
 
         validarAcessoPorCentro(venda);
 
         if (venda.getStatus() == StatusVenda.CANCELADA) {
-            throw new RuntimeException("Venda já está cancelada");
+            throw new VendaJaCanceladaException();
         }
 
         if (venda.getStatus() == StatusVenda.FATURADA) {
-            throw new RuntimeException("Venda faturada não pode ser cancelada");
+            throw new VendaJaFaturadaException();
         }
 
         if (!venda.getDataVenda().toLocalDate().equals(LocalDate.now())) {
-            throw new RuntimeException("Venda só pode ser cancelada no mesmo dia");
+            throw new VendaForaDoPrazoCancelamentoException();
         }
 
         for (var item : venda.getItens()) {
 
             var estoque = estoqueRepository.findByProdutoIdAndCentroId(item.getProduto().getId(), venda.getCentro().getId())
-                    .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
+                    .orElseThrow(() -> new EstoqueNaoEncontradoException(venda.getCentro().getNome()));
 
             // Devolve estoque
             estoque.setQuantidade(estoque.getQuantidade() + item.getQuantidade());
@@ -131,16 +141,16 @@ public class VendaService {
     public void faturar(Long vendaId) {
 
         var venda = vendaRepository.findById(vendaId)
-            .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
+            .orElseThrow(() -> new VendaNaoEncontradaException(vendaId));
 
         validarAcessoPorCentro(venda);
 
         if (venda.getStatus() == StatusVenda.CANCELADA) {
-            throw new RuntimeException("Venda cancelada não pode ser faturada");
+            throw new VendaCanceladaNaoPodeSerFaturadaException();
         }
 
         if (venda.getStatus() == StatusVenda.FATURADA) {
-            throw new RuntimeException("Venda já está faturada");
+            throw new VendaJaFaturadaException();
         }
 
         venda.setStatus(StatusVenda.FATURADA);
@@ -161,7 +171,7 @@ public class VendaService {
             Long centroId = SecurityUtils.getCentroId();
 
             if (centroId == null) {
-                throw new RuntimeException("Usuário sem centro associado");
+                throw new UsuarioSemCentroException();
             }
 
             vendas = vendaRepository.findByCentroId(centroId);
@@ -176,7 +186,7 @@ public class VendaService {
     public VendaDetalhadaResponse buscarPorId(Long id) {
 
         var venda = vendaRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Venda não encontrada"));
+            .orElseThrow(() -> new VendaNaoEncontradaException(id));
 
         validarAcessoPorCentro(venda);
 

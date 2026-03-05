@@ -35,7 +35,7 @@ public class Transferencia extends Auditavel{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String codigo; // TRF-2026-0001
+    private String codigo; //Ex: TRF-2026-0001
 
     @ManyToOne
     private CentroDistribuicao origem;
@@ -45,8 +45,6 @@ public class Transferencia extends Auditavel{
 
     @Enumerated(EnumType.STRING)
     private StatusTransferencia status;
-
-    private LocalDateTime dataCriacao;
 
     private LocalDateTime dataConfirmacao;
 

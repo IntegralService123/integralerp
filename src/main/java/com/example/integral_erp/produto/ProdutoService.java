@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integral_erp.categoria.CategoriaRepository;
+import com.example.integral_erp.exception.CategoriaNaoEncontradaException;
+import com.example.integral_erp.exception.ProdutoNaoEncontradoException;
 import com.example.integral_erp.produto.dto.ProdutoRequest;
 import com.example.integral_erp.produto.dto.ProdutoResponseAdminDTO;
 
@@ -22,7 +24,7 @@ public class ProdutoService {
     public ProdutoResponseAdminDTO criar(ProdutoRequest request) {
 
         var categoria = categoriaRepository.findById(request.categoriaId())
-            .orElseThrow(() -> new RuntimeException("Produto não encontrada"));
+            .orElseThrow(() -> new ProdutoNaoEncontradoException(request.nome()));
 
         var produto = new Produto();
         produto.setNome(request.nome());
@@ -48,7 +50,7 @@ public class ProdutoService {
     public ProdutoResponseAdminDTO buscarPorId(Long id) {
 
         var produto = produtoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada"));
+                .orElseThrow(() -> new CategoriaNaoEncontradaException());
 
         return toResponse(produto);
     }

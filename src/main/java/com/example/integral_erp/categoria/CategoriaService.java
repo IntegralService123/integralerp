@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integral_erp.categoria.dto.CategoriaRequest;
 import com.example.integral_erp.categoria.dto.CategoriaResponse;
+import com.example.integral_erp.exception.CategoriaJaExisteException;
+import com.example.integral_erp.exception.CategoriaNaoEncontradaException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -20,7 +22,7 @@ public class CategoriaService {
     public CategoriaResponse criar(CategoriaRequest request) {
 
         if (categoriaRepository.findByNome(request.nome()).isPresent()) {
-            throw new RuntimeException("Categoria já existe");
+            throw new CategoriaJaExisteException();
         }
 
         var categoria = new Categoria();
@@ -44,7 +46,7 @@ public class CategoriaService {
     public CategoriaResponse buscarPorId(Long id) {
 
         var categoria = categoriaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada"));
+                .orElseThrow(() -> new CategoriaNaoEncontradaException());
 
         return toResponse(categoria);
     }

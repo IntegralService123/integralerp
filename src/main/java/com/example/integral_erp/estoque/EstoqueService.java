@@ -5,8 +5,11 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.integral_erp.config.SecurityUtils;
+import com.example.integral_erp.enums.Role;
 import com.example.integral_erp.estoque.dto.EstoqueAlertaResponse;
 import com.example.integral_erp.estoque.dto.EstoqueResponse;
+import com.example.integral_erp.exception.EstoqueNaoEncontradoException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,7 +22,17 @@ public class EstoqueService {
     @Transactional(readOnly = true)
     public List<EstoqueResponse> listarTodos() {
 
-        return estoqueRepository.findAll().stream()
+        if (SecurityUtils.getRole() == Role.BASE_ADMIN) {
+
+            return estoqueRepository.findAll().stream()
+            .map(this::toResponse)
+            .toList();
+        }
+
+        Long centroId = SecurityUtils.getCentroId();
+
+        return estoqueRepository.findByCentroId(centroId)
+            .stream()
             .map(this::toResponse)
             .toList();
     }
@@ -37,7 +50,7 @@ public class EstoqueService {
 
         var estoque = estoqueRepository
                 .findByProdutoIdAndCentroId(produtoId, centroId)
-                .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
+                .orElseThrow(() -> new EstoqueNaoEncontradoException());
 
         return toResponse(estoque);
     }

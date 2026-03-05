@@ -45,6 +45,6 @@ public class Usuario {
     private Boolean ativo = true;
 
     @ManyToOne
-    @JoinColumn(name = "centro_id", nullable = true)
+    @JoinColumn(name = "centro_id")
     private CentroDistribuicao centro;
 }
