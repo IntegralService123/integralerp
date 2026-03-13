@@ -64,6 +64,36 @@ public class ProdutoService {
             .toList();
     }
 
+    @Transactional
+    public ProdutoResponseAdminDTO atualizar(Long id, ProdutoRequest request) {
+
+        var produto = produtoRepository.findById(id)
+            .orElseThrow(() -> new ProdutoNaoEncontradoException("Produto não encontrado"));
+
+        var categoria = categoriaRepository.findById(request.categoriaId())
+            .orElseThrow(() -> new CategoriaNaoEncontradaException());
+
+        produto.setNome(request.nome());
+        produto.setDescricao(request.descricao());
+        produto.setCodigoBarras(request.codigoBarras());
+        produto.setEstoqueMinimo(request.estoqueMinimo());
+        produto.setCategoria(categoria);
+
+        produto = produtoRepository.save(produto);
+
+        return toResponse(produto);
+    }
+
+    @Transactional
+    public void excluir(Long id) {
+
+        if (!produtoRepository.existsById(id)) {
+            throw new ProdutoNaoEncontradoException("Produto não encontrado");
+        }
+
+        produtoRepository.deleteById(id);
+    }
+
     private ProdutoResponseAdminDTO toResponse(Produto produto) {
         
         return new ProdutoResponseAdminDTO(

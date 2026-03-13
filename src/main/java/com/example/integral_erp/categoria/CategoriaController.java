@@ -10,32 +10,33 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.integral_erp.categoria.dto.CategoriaRequest;
-import com.example.integral_erp.categoria.dto.CategoriaResponse;
+import com.example.integral_erp.categoria.dto.CategoriaRequestDTO;
+import com.example.integral_erp.categoria.dto.CategoriaResponseDTO;
 
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/categorias")
+@RequestMapping("/api/categorias")
 @RequiredArgsConstructor
 public class CategoriaController {
 
     private final CategoriaService categoriaService;
 
     @PostMapping
-    public ResponseEntity<CategoriaResponse> criar(
-            @RequestBody CategoriaRequest request) {
+    public ResponseEntity<CategoriaResponseDTO> criar(
+            @RequestBody CategoriaRequestDTO request) {
 
         return ResponseEntity.ok(categoriaService.criar(request));
     }
 
     @GetMapping
-    public ResponseEntity<List<CategoriaResponse>> listar() {
+    public ResponseEntity<List<CategoriaResponseDTO>> listar() {
         return ResponseEntity.ok(categoriaService.listar());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CategoriaResponse> buscar(@PathVariable Long id) {
+    public ResponseEntity<CategoriaResponseDTO> buscar(@PathVariable Long id) {
         return ResponseEntity.ok(categoriaService.buscarPorId(id));
     }
+
 }

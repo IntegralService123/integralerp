@@ -1,6 +1,6 @@
 package com.example.integral_erp.categoria.dto;
 
-public record CategoriaRequest(
+public record CategoriaRequestDTO(
     String nome,
     String descricao
 ) {}

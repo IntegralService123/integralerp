@@ -3,11 +3,14 @@ package com.example.integral_erp.produto;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.integral_erp.produto.dto.ProdutoRequest;
@@ -16,7 +19,7 @@ import com.example.integral_erp.produto.dto.ProdutoResponseAdminDTO;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/produtos")
+@RequestMapping("/api/produtos")
 @RequiredArgsConstructor
 public class ProdutoController {
 
@@ -30,8 +33,16 @@ public class ProdutoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProdutoResponseAdminDTO>> listar() {
-        return ResponseEntity.ok(produtoService.listar());
+    public List<ProdutoResponseAdminDTO> listar(
+        @RequestParam(required = false) Long categoria,
+        @RequestParam(required = false) String q
+    ) {
+
+        if (categoria != null) {
+            return produtoService.listarPorCategoria(categoria);
+        }
+
+        return produtoService.listar();
     }
 
     @GetMapping("/{id}")
@@ -46,5 +57,18 @@ public class ProdutoController {
         return ResponseEntity.ok(
                 produtoService.listarPorCategoria(categoriaId)
         );
+    }
+
+    @PutMapping("/{id}")
+    public ProdutoResponseAdminDTO atualizar(
+            @PathVariable Long id,
+            @RequestBody ProdutoRequest request) {
+
+        return produtoService.atualizar(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public void excluir(@PathVariable Long id) {
+        produtoService.excluir(id);
     }
 }

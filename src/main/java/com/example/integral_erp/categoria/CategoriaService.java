@@ -5,8 +5,8 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.integral_erp.categoria.dto.CategoriaRequest;
-import com.example.integral_erp.categoria.dto.CategoriaResponse;
+import com.example.integral_erp.categoria.dto.CategoriaRequestDTO;
+import com.example.integral_erp.categoria.dto.CategoriaResponseDTO;
 import com.example.integral_erp.exception.CategoriaJaExisteException;
 import com.example.integral_erp.exception.CategoriaNaoEncontradaException;
 
@@ -19,7 +19,7 @@ public class CategoriaService {
     private final CategoriaRepository categoriaRepository;
 
     @Transactional
-    public CategoriaResponse criar(CategoriaRequest request) {
+    public CategoriaResponseDTO criar(CategoriaRequestDTO request) {
 
         if (categoriaRepository.findByNome(request.nome()).isPresent()) {
             throw new CategoriaJaExisteException();
@@ -35,7 +35,7 @@ public class CategoriaService {
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaResponse> listar() {
+    public List<CategoriaResponseDTO> listar() {
         return categoriaRepository.findAll()
                 .stream()
                 .map(this::toResponse)
@@ -43,7 +43,7 @@ public class CategoriaService {
     }
 
     @Transactional(readOnly = true)
-    public CategoriaResponse buscarPorId(Long id) {
+    public CategoriaResponseDTO buscarPorId(Long id) {
 
         var categoria = categoriaRepository.findById(id)
                 .orElseThrow(() -> new CategoriaNaoEncontradaException());
@@ -51,8 +51,8 @@ public class CategoriaService {
         return toResponse(categoria);
     }
 
-    private CategoriaResponse toResponse(Categoria categoria) {
-        return new CategoriaResponse(
+    private CategoriaResponseDTO toResponse(Categoria categoria) {
+        return new CategoriaResponseDTO(
                 categoria.getId(),
                 categoria.getNome(),
                 categoria.getDescricao()
