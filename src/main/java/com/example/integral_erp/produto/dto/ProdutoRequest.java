@@ -5,5 +5,6 @@ public record ProdutoRequest(
         String descricao,
         String codigoBarras,
         Integer estoqueMinimo,
-        Long categoriaId
+        Long categoriaId,
+        String imagemUrl
 ) {}

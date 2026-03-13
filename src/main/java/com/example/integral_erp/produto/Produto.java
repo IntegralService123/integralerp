@@ -30,6 +30,9 @@ public class Produto extends Auditavel{
 
     private String descricao;
 
+    @Column(name = "imagem_url")
+    private String imagemUrl;
+
     @Column(unique = true)
     private String codigoBarras;
 

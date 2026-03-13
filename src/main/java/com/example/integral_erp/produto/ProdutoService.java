@@ -29,6 +29,7 @@ public class ProdutoService {
         var produto = new Produto();
         produto.setNome(request.nome());
         produto.setDescricao(request.descricao());
+        produto.setImagemUrl(request.imagemUrl());
         produto.setCodigoBarras(request.codigoBarras());
         produto.setEstoqueMinimo(request.estoqueMinimo());
         produto.setCategoria(categoria);
@@ -75,6 +76,7 @@ public class ProdutoService {
 
         produto.setNome(request.nome());
         produto.setDescricao(request.descricao());
+        produto.setImagemUrl(request.imagemUrl());
         produto.setCodigoBarras(request.codigoBarras());
         produto.setEstoqueMinimo(request.estoqueMinimo());
         produto.setCategoria(categoria);
@@ -100,6 +102,7 @@ public class ProdutoService {
             produto.getId(),
             produto.getNome(),
             produto.getDescricao(),
+            produto.getImagemUrl(),
             produto.getCodigoBarras(),
             produto.getEstoqueMinimo(),
             produto.getCategoria().getId(),
