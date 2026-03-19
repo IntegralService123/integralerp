@@ -32,6 +32,7 @@ public class ProdutoService {
         produto.setImagemUrl(request.imagemUrl());
         produto.setCodigoBarras(request.codigoBarras());
         produto.setEstoqueMinimo(request.estoqueMinimo());
+        produto.setPreco(request.preco());
         produto.setCategoria(categoria);
 
         produto = produtoRepository.save(produto);
@@ -79,6 +80,7 @@ public class ProdutoService {
         produto.setImagemUrl(request.imagemUrl());
         produto.setCodigoBarras(request.codigoBarras());
         produto.setEstoqueMinimo(request.estoqueMinimo());
+        produto.setPreco(request.preco());
         produto.setCategoria(categoria);
 
         produto = produtoRepository.save(produto);
@@ -106,7 +108,8 @@ public class ProdutoService {
             produto.getCodigoBarras(),
             produto.getEstoqueMinimo(),
             produto.getCategoria().getId(),
-            produto.getCategoria().getNome()
+            produto.getCategoria().getNome(),
+            produto.getPreco()
         );
     }
 }

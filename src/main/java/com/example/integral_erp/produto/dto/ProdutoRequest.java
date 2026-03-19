@@ -1,10 +1,13 @@
 package com.example.integral_erp.produto.dto;
 
+import java.math.BigDecimal;
+
 public record ProdutoRequest(
         String nome,
         String descricao,
         String codigoBarras,
         Integer estoqueMinimo,
         Long categoriaId,
-        String imagemUrl
+        String imagemUrl,
+        BigDecimal preco
 ) {}

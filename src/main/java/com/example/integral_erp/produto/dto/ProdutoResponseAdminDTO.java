@@ -1,5 +1,7 @@
 package com.example.integral_erp.produto.dto;
 
+import java.math.BigDecimal;
+
 public record ProdutoResponseAdminDTO(
         Long id,
         String nome,
@@ -8,5 +10,6 @@ public record ProdutoResponseAdminDTO(
         String codigoBarras,
         Integer estoqueMinimo,
         Long categoriaId,
-        String categoriaNome
+        String categoriaNome,
+        BigDecimal preco
 ) {}
