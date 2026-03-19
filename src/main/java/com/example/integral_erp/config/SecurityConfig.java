@@ -70,6 +70,28 @@ public class SecurityConfig {
                     .hasRole("BASE_ADMIN")
 
                 .requestMatchers("/uploads/**").permitAll()
+
+                // CARRINHO
+                .requestMatchers(HttpMethod.POST, "/api/carrinho/**")
+                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+
+                .requestMatchers(HttpMethod.GET, "/api/carrinho/**")
+                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+
+                .requestMatchers(HttpMethod.PATCH, "/api/carrinho/**")
+                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+
+                .requestMatchers(HttpMethod.DELETE, "/api/carrinho/**")
+                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // PEDIDOS
+                .requestMatchers(HttpMethod.POST, "/api/pedidos/**")
+                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+
+                .requestMatchers(HttpMethod.GET, "/api/pedidos/**")
+                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
                 
                 .anyRequest().authenticated()
             )
