@@ -2,205 +2,259 @@ package com.example.integral_erp.transferencia;
 
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integral_erp.centrodistribuicao.*;
 import com.example.integral_erp.config.SecurityUtils;
+import com.example.integral_erp.enums.Role;
 import com.example.integral_erp.enums.StatusTransferencia;
+import com.example.integral_erp.enums.TipoCentro;
 import com.example.integral_erp.enums.TipoMovimentacao;
 import com.example.integral_erp.estoque.*;
-import com.example.integral_erp.exception.CentroDestinoNaoEncontradoException;
-import com.example.integral_erp.exception.CentroOrigemNaoEncontradoException;
-import com.example.integral_erp.exception.EstoqueInsuficienteException;
-import com.example.integral_erp.exception.EstoqueNaoEncontradoException;
-import com.example.integral_erp.exception.EstoqueOrigemNaoEncontradoException;
-import com.example.integral_erp.exception.ProdutoNaoEncontradoException;
-import com.example.integral_erp.exception.SomenteTransferenciaCriadaPodeSerCanceladaException;
-import com.example.integral_erp.exception.TransferenciaConfirmadaOuCanceladaException;
-import com.example.integral_erp.exception.TransferenciaNaoEncontradaException;
 import com.example.integral_erp.movimentacaoestoque.MovimentacaoEstoque;
+import com.example.integral_erp.movimentacaoestoque.MovimentacaoEstoqueRepository;
 import com.example.integral_erp.produto.*;
-import com.example.integral_erp.transferencia.dto.TransferenciaRequest;
-import com.example.integral_erp.transferencia.dto.TransferenciaResponse;
+import com.example.integral_erp.transferencia.dto.ConfirmarTransferenciaRequestDTO;
+import com.example.integral_erp.transferencia.dto.TransferenciaRequestDTO;
+import com.example.integral_erp.transferencia.dto.TransferenciaResponseDTO;
 import com.example.integral_erp.transferenciaitem.TransferenciaItem;
-import com.example.integral_erp.transferenciaitem.TransferenciaItemRepository;
-import com.example.integral_erp.transferenciaitem.dto.TransferenciaItemResponse;
+import com.example.integral_erp.transferenciaitem.dto.TransferenciaItemResponseDTO;
+import com.example.integral_erp.usuario.Usuario;
 
 @Service
 @RequiredArgsConstructor
 public class TransferenciaService {
 
     private final TransferenciaRepository transferenciaRepository;
-    private final TransferenciaItemRepository itemRepository;
     private final CentroDistribuicaoRepository centroRepository;
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
+    private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
 
     @Transactional
-    public Transferencia criarTransferencia(TransferenciaRequest request) {
+    public TransferenciaResponseDTO criar(TransferenciaRequestDTO request) {
 
-        var origem = centroRepository.findById(request.centroOrigemId())
-                .orElseThrow(() -> new CentroOrigemNaoEncontradoException());
+        Usuario usuario = SecurityUtils.getUsuarioLogado();
 
-        var destino = centroRepository.findById(request.centroDestinoId())
-                .orElseThrow(() -> new CentroDestinoNaoEncontradoException());
+        if (usuario.getRole() != Role.BASE_ADMIN) {
+            throw new RuntimeException("Apenas admin pode criar transferência");
+        }
 
-        var transferencia = new Transferencia();
+        CentroDistribuicao origem = centroRepository
+            .findByTipo(TipoCentro.BASE)
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("Centro BASE não encontrado"));
+
+        CentroDistribuicao destino = centroRepository.findById(request.destinoId())
+                .orElseThrow();
+
+        Transferencia transferencia = new Transferencia();
         transferencia.setOrigem(origem);
         transferencia.setDestino(destino);
         transferencia.setStatus(StatusTransferencia.CRIADA);
+        transferencia.setCodigo("TRF-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
-        transferencia = transferenciaRepository.save(transferencia);
+        List<TransferenciaItem> itens = new ArrayList<>();
 
         for (var itemRequest : request.itens()) {
 
-            var produto = produtoRepository.findById(itemRequest.produtoId())
-                .orElseThrow(() -> new ProdutoNaoEncontradoException(itemRequest.produtoId()));
+            Produto produto = produtoRepository.findById(itemRequest.produtoId())
+                    .orElseThrow();
 
-            var estoqueOrigem = estoqueRepository
-                    .findByProdutoIdAndCentroId(
-                            produto.getId(),
-                            origem.getId()
-                    )
-                    .orElseThrow(() -> new EstoqueNaoEncontradoException(origem.getNome()));
-
-            if (estoqueOrigem.getQuantidade() < itemRequest.quantidade()) {
-                throw new EstoqueInsuficienteException(produto.getNome());
-            }
-
-            // debita estoque da base
-            estoqueOrigem.setQuantidade(
-                    estoqueOrigem.getQuantidade() - itemRequest.quantidade()
-            );
-
-            estoqueRepository.save(estoqueOrigem);
-
-            var item = new TransferenciaItem();
-            item.setTransferencia(transferencia);
+            TransferenciaItem item = new TransferenciaItem();
             item.setProduto(produto);
             item.setQuantidade(itemRequest.quantidade());
+            item.setTransferencia(transferencia);
 
-            itemRepository.save(item);
-
-            transferencia.getItens().add(item);
-
-            MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
-            movimentacao.setProduto(produto);
-            movimentacao.setCentro(origem);
-            movimentacao.setTipo(TipoMovimentacao.SAIDA_TRANSFERENCIA);
-            movimentacao.setQuantidade(itemRequest.quantidade());
-            movimentacao.setReferenciaId(transferencia.getId());
-            movimentacao.setUsuario(SecurityUtils.getUsuarioLogado());
+            itens.add(item);
         }
-    
-        return transferencia;
+
+        transferencia.setItens(itens);
+
+        transferencia = transferenciaRepository.save(transferencia);
+
+        return toResponse(transferencia);
     }
 
     @Transactional
-    public void confirmarTransferencia (Long transferenciaId) {
-        
-        var transferencia = transferenciaRepository.findById(transferenciaId)
-                .orElseThrow(() -> new TransferenciaNaoEncontradaException(transferenciaId));
+    public TransferenciaResponseDTO enviar(Long id) {
 
-        if (transferencia.getStatus() != StatusTransferencia.CRIADA) {
-                throw new TransferenciaConfirmadaOuCanceladaException();
+        Usuario usuario = SecurityUtils.getUsuarioLogado();
+
+        if (usuario.getRole() != Role.BASE_ADMIN) {
+            throw new RuntimeException("Apenas admin pode enviar");
         }
 
-        var destino = transferencia.getDestino();
+        Transferencia transferencia = transferenciaRepository.findById(id)
+                .orElseThrow();
 
-        for(var item : transferencia.getItens()) {
-            var produto = item.getProduto();
+        if (transferencia.getStatus() != StatusTransferencia.CRIADA) {
+            throw new RuntimeException("Transferência inválida para envio");
+        }
 
-            var estoqueDestino = estoqueRepository.findByProdutoIdAndCentroId(produto.getId(), destino.getId()).orElse(null);
-        
-            if (estoqueDestino == null) {
-                estoqueDestino = new Estoque();
-                estoqueDestino.setProduto(produto);
-                estoqueDestino.setCentro(destino);
-                estoqueDestino.setQuantidade(0);  
+        Long origemId = transferencia.getOrigem().getId();
+
+        for (TransferenciaItem item : transferencia.getItens()) {
+
+            Estoque estoqueOrigem = estoqueRepository
+                    .findByProdutoIdAndCentroId(item.getProduto().getId(), origemId)
+                    .orElseThrow(() -> new RuntimeException("Sem estoque"));
+
+            if (estoqueOrigem.getQuantidade() < item.getQuantidade()) {
+                throw new RuntimeException("Estoque insuficiente");
             }
 
-            estoqueDestino.setQuantidade(estoqueDestino.getQuantidade() + item.getQuantidade());
-
-            estoqueRepository.save(estoqueDestino);
-        }
-
-        transferencia.setStatus(StatusTransferencia.RECEBIDA);
-        transferenciaRepository.save(transferencia);
-
-        MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
-        movimentacao.setTipo(TipoMovimentacao.ENTRADA_TRANSFERENCIA);
-    }
-
-    public void cancelarTransferencia (Long transferenciaId) {
-        
-        var transferencia = transferenciaRepository.findById(transferenciaId)
-            .orElseThrow(() -> new TransferenciaNaoEncontradaException(transferenciaId));
-
-        if (transferencia.getStatus() != StatusTransferencia.CRIADA) {
-            throw new SomenteTransferenciaCriadaPodeSerCanceladaException();
-        }
-
-        var origem = transferencia.getOrigem();
-
-        for (var item : transferencia.getItens()) {
-
-            var produto = item.getProduto();
-
-            var estoqueOrigem = estoqueRepository
-                .findByProdutoIdAndCentroId(produto.getId(), origem.getId())
-                .orElseThrow(() -> new EstoqueOrigemNaoEncontradoException());
-
             estoqueOrigem.setQuantidade(
-                estoqueOrigem.getQuantidade() + item.getQuantidade()
+                estoqueOrigem.getQuantidade() - item.getQuantidade()
             );
 
             estoqueRepository.save(estoqueOrigem);
+
+            MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
+            movimentacao.setProduto(item.getProduto());
+            movimentacao.setCentro(transferencia.getOrigem());
+            movimentacao.setTipo(TipoMovimentacao.SAIDA_TRANSFERENCIA);
+            movimentacao.setQuantidade(item.getQuantidade());
+            movimentacao.setUsuario(usuario);
+            movimentacao.setReferenciaId(transferencia.getId());
+
+            movimentacaoEstoqueRepository.save(movimentacao);
         }
 
-        transferencia.setStatus(StatusTransferencia.CANCELADA);
-        transferenciaRepository.save(transferencia);
+        transferencia.setDataEnvio(LocalDateTime.now());
+        transferencia.setStatus(StatusTransferencia.ENVIADA);
 
-        MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
-        movimentacao.setTipo(TipoMovimentacao.ESTORNO_TRANSFERENCIA);
+        transferencia = transferenciaRepository.save(transferencia);
+
+        return toResponse(transferencia);
+    }
+
+    @Transactional
+    public TransferenciaResponseDTO confirmar(ConfirmarTransferenciaRequestDTO request) {
+
+        Usuario usuario = SecurityUtils.getUsuarioLogado();
+
+        Transferencia transferencia = transferenciaRepository
+                .findByCodigo(request.codigo())
+                .orElseThrow();
+
+        if (!transferencia.getDestino().getId().equals(usuario.getCentro().getId())) {
+            throw new RuntimeException("Não pertence a este centro");
+        }
+
+        if (transferencia.getStatus() != StatusTransferencia.ENVIADA) {
+            throw new RuntimeException("Transferência não foi enviada");
+        }
+
+        if (usuario.getRole() != Role.DISTRIBUIDOR) {
+            throw new RuntimeException("Apenas distribuidores podem confirmar recebimento");
+        }
+
+        Long destinoId = transferencia.getDestino().getId();
+
+        for (TransferenciaItem item : transferencia.getItens()) {
+
+            Estoque estoqueDestino = estoqueRepository
+                    .findByProdutoIdAndCentroId(item.getProduto().getId(), destinoId)
+                    .orElseGet(() -> criarEstoque(item.getProduto(), transferencia.getDestino()));
+
+            estoqueDestino.setQuantidade(
+                estoqueDestino.getQuantidade() + item.getQuantidade()
+            );
+
+            estoqueRepository.save(estoqueDestino);
+
+            MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
+            movimentacao.setProduto(item.getProduto());
+            movimentacao.setCentro(transferencia.getDestino());
+            movimentacao.setTipo(TipoMovimentacao.ENTRADA_TRANSFERENCIA);
+            movimentacao.setQuantidade(item.getQuantidade());
+            movimentacao.setUsuario(usuario);
+            movimentacao.setReferenciaId(transferencia.getId());
+
+            movimentacaoEstoqueRepository.save(movimentacao);
+        }
+
+        transferencia.setDataRecebimento(LocalDateTime.now());
+        transferencia.setStatus(StatusTransferencia.RECEBIDA);
+
+        Transferencia salva = transferenciaRepository.save(transferencia);
+
+        return toResponse(salva);
     }
 
     @Transactional(readOnly = true)
-    public List<TransferenciaResponse> listar() {
-        return transferenciaRepository.findAll()
-            .stream()
+    public List<TransferenciaResponseDTO> listar() {
+
+        Usuario usuario = SecurityUtils.getUsuarioLogado();
+
+        List<Transferencia> lista;
+
+        if (usuario.getRole() == Role.BASE_ADMIN) {
+
+            lista = transferenciaRepository.findAll();
+    
+        } else {
+            lista = transferenciaRepository.findByDestinoId(usuario.getCentro().getId());
+        }
+
+        return lista.stream()
             .map(this::toResponse)
             .toList();
     }
 
     @Transactional(readOnly = true)
-    public TransferenciaResponse buscarPorId(Long id) {
+    public TransferenciaResponseDTO buscarPorCodigo(String codigo) {
 
-        var transferencia = transferenciaRepository.findById(id)
-            .orElseThrow(() -> new TransferenciaNaoEncontradaException(id));
+        Usuario usuario = SecurityUtils.getUsuarioLogado();
+
+        Transferencia transferencia = transferenciaRepository
+            .findByCodigo(codigo)
+            .orElseThrow(() -> new RuntimeException("Transferência não encontrada"));
+
+        if (usuario.getRole() == Role.DISTRIBUIDOR &&
+            !transferencia.getDestino().getId().equals(usuario.getCentro().getId())) {
+
+            throw new RuntimeException("Acesso negado");
+        }
 
         return toResponse(transferencia);
     }
 
-    public TransferenciaResponse toResponse(Transferencia transferencia) {
+// =========================================================================================
 
-        var itens = transferencia.getItens().stream()
-            .map(item -> new TransferenciaItemResponse(
-                item.getProduto().getId(),
-                item.getProduto().getNome(),
-                item.getQuantidade()
-            ))
-            .toList();
+    private Estoque criarEstoque(Produto produto, CentroDistribuicao centro) {
 
-        return new TransferenciaResponse(
+        Estoque estoque = new Estoque();
+        estoque.setProduto(produto);
+        estoque.setCentro(centro);
+        estoque.setQuantidade(0);
+
+        return estoqueRepository.save(estoque);
+    }
+
+    private TransferenciaResponseDTO toResponse(Transferencia transferencia) {
+
+        return new TransferenciaResponseDTO(
             transferencia.getId(),
-            transferencia.getOrigem().getId(),
-            transferencia.getDestino().getId(),
-            transferencia.getStatus(),
-            itens
+            transferencia.getCodigo(),
+            transferencia.getOrigem().getNome(),
+            transferencia.getDestino().getNome(),
+            transferencia.getStatus().name(),
+            transferencia.getItens().stream().map(item ->
+                new TransferenciaItemResponseDTO(
+                    item.getProduto().getId(),
+                    item.getProduto().getNome(),
+                    item.getQuantidade()
+                )
+            ).toList()
         );
     }
 }

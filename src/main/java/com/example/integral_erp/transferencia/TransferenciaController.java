@@ -10,46 +10,51 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.integral_erp.transferencia.dto.TransferenciaRequest;
-import com.example.integral_erp.transferencia.dto.TransferenciaResponse;
+import com.example.integral_erp.transferencia.dto.ConfirmarTransferenciaRequestDTO;
+import com.example.integral_erp.transferencia.dto.TransferenciaRequestDTO;
+import com.example.integral_erp.transferencia.dto.TransferenciaResponseDTO;
 
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/transferencias")
+@RequestMapping("/api/transferencias")
 @RequiredArgsConstructor
 public class TransferenciaController {
 
     private final TransferenciaService transferenciaService;
 
     @PostMapping
-    public ResponseEntity<Transferencia> criar (@RequestBody TransferenciaRequest request) {
+    public ResponseEntity<TransferenciaResponseDTO> criar(
+            @RequestBody TransferenciaRequestDTO request) {
 
-        var transferencia = transferenciaService.criarTransferencia(request);
-        return ResponseEntity.ok(transferencia);
+        return ResponseEntity.ok(transferenciaService.criar(request));
     }
 
-    @PostMapping("/{id}/confirmar")
-    public ResponseEntity<Void> confirmar (@PathVariable Long id) {
-
-        transferenciaService.confirmarTransferencia(id);
-        return ResponseEntity.noContent().build();
+    @PostMapping("/{id}/enviar")
+    public void enviar (@PathVariable Long id) {
+        transferenciaService.enviar(id);
     }
 
-    @PostMapping("/{id}/cancelar")
-    public ResponseEntity<Void> cancelar(@PathVariable Long id) {
+    @PostMapping("/confirmar")
+    public ResponseEntity<TransferenciaResponseDTO> confirmar(
+            @RequestBody ConfirmarTransferenciaRequestDTO request) {
 
-        transferenciaService.cancelarTransferencia(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(
+            transferenciaService.confirmar(request)
+        );
     }
 
     @GetMapping
-    public ResponseEntity<List<TransferenciaResponse>> listar() {
-        return ResponseEntity.ok(transferenciaService.listar());
+    public List<TransferenciaResponseDTO> listar() {
+        return transferenciaService.listar();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<TransferenciaResponse> buscar(@PathVariable Long id) {
-        return ResponseEntity.ok(transferenciaService.buscarPorId(id));
+    @GetMapping("/codigo/{codigo}")
+    public ResponseEntity<TransferenciaResponseDTO> buscarPorCodigo(
+            @PathVariable String codigo) {
+
+        return ResponseEntity.ok(
+            transferenciaService.buscarPorCodigo(codigo)
+        );
     }
 }

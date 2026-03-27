@@ -25,11 +25,11 @@ public class TransferenciaItem extends Auditavel{
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "transferencia_id")
-    private Transferencia transferencia;
-
-    @ManyToOne
     private Produto produto;
 
     private Integer quantidade;
+
+    @ManyToOne
+    @JoinColumn(name = "transferencia_id")
+    private Transferencia transferencia;
 }
