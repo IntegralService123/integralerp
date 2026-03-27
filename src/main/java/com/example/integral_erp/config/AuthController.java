@@ -15,6 +15,8 @@ import com.example.integral_erp.config.dto.LoginRequestDTO;
 import com.example.integral_erp.config.dto.LoginResponseDTO;
 import com.example.integral_erp.config.dto.UsuarioMeResponseDTO;
 import com.example.integral_erp.usuario.Usuario;
+import com.example.integral_erp.usuario.UsuarioService;
+import com.example.integral_erp.usuario.dto.RegisterRequestDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +27,7 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final UsuarioService usuarioService;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(
@@ -60,5 +63,10 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/register")
+    public void register(@RequestBody RegisterRequestDTO request) {
+        usuarioService.registrarCliente(request);
     }
 }

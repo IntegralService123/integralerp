@@ -52,6 +52,8 @@ public class MovimentacaoEstoque extends Auditavel {
 
     private Long referenciaId; // id da venda ou transferencia
 
+    private String referenciaTipo;
+
     @ManyToOne
     private Usuario usuario;
 }

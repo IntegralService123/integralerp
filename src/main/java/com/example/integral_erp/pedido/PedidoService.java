@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integral_erp.carrinho.Carrinho;
 import com.example.integral_erp.carrinho.CarrinhoRepository;
@@ -17,7 +18,7 @@ import com.example.integral_erp.pedidoitem.dto.PedidoItemResponseDTO;
 import com.example.integral_erp.produto.Produto;
 import com.example.integral_erp.usuario.Usuario;
 
-import jakarta.transaction.Transactional;
+
 import lombok.RequiredArgsConstructor;
 
 @Service

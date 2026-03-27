@@ -11,5 +11,6 @@ public record ProdutoResponseAdminDTO(
         Integer estoqueMinimo,
         Long categoriaId,
         String categoriaNome,
-        BigDecimal preco
+        BigDecimal preco,
+        Boolean ativo
 ) {}

@@ -1,7 +1,6 @@
 package com.example.integral_erp.transferenciaitem.dto;
 
-public record TransferenciaItemResponse(
+public record TransferenciaItemRequestDTO(
             Long produtoId,
-            String produtoNome,
             Integer quantidade
-        ) {}
+    ) {}

@@ -9,5 +9,6 @@ public record ProdutoRequest(
         Integer estoqueMinimo,
         Long categoriaId,
         String imagemUrl,
-        BigDecimal preco
+        BigDecimal preco,
+        Long centroId
 ) {}
