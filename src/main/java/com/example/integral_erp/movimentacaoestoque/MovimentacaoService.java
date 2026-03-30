@@ -1,8 +1,9 @@
 package com.example.integral_erp.movimentacaoestoque;
 
-import java.util.Comparator;
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -93,21 +94,31 @@ public class MovimentacaoService {
 // =========================================================================
 
     @Transactional(readOnly = true)
-    public List<MovimentacaoResponseDTO> listar() {
+    public Page<MovimentacaoResponseDTO> listar(String tipo, Long produtoId, int page, int size) {
 
         Usuario usuario = SecurityUtils.getUsuarioLogado();
 
-        List<MovimentacaoEstoque> lista;
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        if (usuario.getRole() == Role.BASE_ADMIN) {
-            lista = movimentacaoRepository.findAll();
-        } else {
-            lista = movimentacaoRepository.findByCentroId(usuario.getCentro().getId());
+        Page<MovimentacaoEstoque> resultado;
+
+        TipoMovimentacao tipoEnum = null;
+
+        if (tipo != null && !tipo.isBlank()) {
+            try {
+                tipoEnum = TipoMovimentacao.valueOf(tipo);
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Tipo de movimentação inválido");
+            }
         }
 
-        return lista.stream().sorted(Comparator.comparing(MovimentacaoEstoque::getCreatedAt).reversed())
-                    .map(this::toResponse)
-                    .toList();
+        if (usuario.getRole() == Role.BASE_ADMIN) {
+            resultado = movimentacaoRepository.buscarComFiltros(tipoEnum, produtoId, pageable);
+        } else {
+            resultado = movimentacaoRepository.buscarComFiltrosEPorCentro(tipoEnum, produtoId, usuario.getCentro().getId(), pageable);
+        }
+
+        return resultado.map(this::toResponse);
     }
 
 // ======================================================
@@ -131,7 +142,8 @@ public class MovimentacaoService {
             movimentacao.getProduto().getNome(),
             movimentacao.getCentro().getNome(),
             movimentacao.getTipo().name(),
-            movimentacao.getQuantidade()
+            movimentacao.getQuantidade(),
+            movimentacao.getCreatedAt()
         );
     }
 }
