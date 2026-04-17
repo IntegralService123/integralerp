@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.integral_erp.pedido.PedidoService;
+import com.example.integral_erp.pedido.dto.PedidoManualRequestDTO;
+import com.example.integral_erp.pedido.dto.PedidoResponseDTO;
 import com.example.integral_erp.venda.dto.VendaDetalhadaResponse;
 import com.example.integral_erp.venda.dto.VendaRequest;
 import com.example.integral_erp.venda.dto.VendaResponse;
@@ -23,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class VendaController {
 
     private final VendaService vendaService;
+    private final PedidoService pedidoService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('BASE_ADMIN','DISTRIBUIDOR')")
@@ -58,5 +62,11 @@ public class VendaController {
     @PreAuthorize("hasAnyRole('BASE_ADMIN','DISTRIBUIDOR')")
     public ResponseEntity<VendaDetalhadaResponse> buscar(@PathVariable Long id) {
         return ResponseEntity.ok(vendaService.buscarPorId(id));
+    }
+
+    @PostMapping("/manual")
+    @PreAuthorize("hasAnyRole('BASE_ADMIN', 'DISTRIBUIDOR')")
+    public PedidoResponseDTO vendaManual(@RequestBody PedidoManualRequestDTO request) {
+        return pedidoService.criarManual(request);
     }
 }

@@ -1,5 +1,7 @@
 package com.example.integral_erp.movimentacaoestoque;
 
+import java.time.LocalDateTime;
+
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,10 +36,12 @@ public class MovimentacaoController {
     public Page<MovimentacaoResponseDTO> listar(
             @RequestParam(required = false) String tipo,
             @RequestParam(required = false) Long produtoId,
+            @RequestParam(required = false) LocalDateTime dataInicio,
+            @RequestParam(required = false) LocalDateTime dataFim,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        return movimentacaoService.listar(tipo, produtoId, page, size);
+        return movimentacaoService.listar(tipo, produtoId, dataInicio, dataFim, page, size);
     }
     
 }

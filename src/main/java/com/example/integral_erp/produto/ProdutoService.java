@@ -97,6 +97,18 @@ public class ProdutoService {
             .toList();
     }
 
+    public List<ProdutoResponseAdminDTO> listarCatalogo(Long categoria, String q) {
+
+    String busca = (q == null || q.isBlank()) 
+        ? null 
+        : "%" + q.toLowerCase() + "%";
+
+    return produtoRepository.buscarCatalogo(categoria, busca)
+        .stream()
+        .map(this::toResponse)
+        .toList();
+}
+
 // ======================================================
 // LISTAR ESTOQUE
 // ======================================================

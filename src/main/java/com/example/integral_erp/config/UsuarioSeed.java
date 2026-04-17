@@ -36,22 +36,33 @@ public class UsuarioSeed implements CommandLineRunner {
     @Override
     public void run (String... args) {
 
-        if (usuarioRepository.count() == 0) {
+        Usuario admin = usuarioRepository.findByEmail(adminEmail).orElse(null);
 
-            CentroDistribuicao centroBase = centroRepository
+        CentroDistribuicao centroBase = centroRepository
                 .findFirstByTipo(TipoCentro.BASE)
                 .orElseThrow(() -> new RuntimeException("Centro BASE não encontrado"));
 
-            Usuario admin = new Usuario();
-            admin.setNome("Administrador");
-            admin.setEmail(adminEmail.trim());
-            admin.setSenha(passwordEncoder.encode(adminPassword.trim()));
-            admin.setRole(Role.BASE_ADMIN);
-            admin.setCentro(centroBase);
+        if (admin == null) {
 
-            usuarioRepository.save(admin);
+            
+
+            Usuario novoAdmin = new Usuario();
+            novoAdmin.setNome("Administrador");
+            novoAdmin.setEmail(adminEmail.trim());
+            novoAdmin.setSenha(passwordEncoder.encode(adminPassword.trim()));
+            novoAdmin.setRole(Role.BASE_ADMIN);
+            novoAdmin.setCentro(centroBase);
+
+            usuarioRepository.save(novoAdmin);
 
             System.out.println("Usuário ADMIN criado com sucesso");
+
+        } else if (admin.getCentro() == null) {
+
+            admin.setCentro(centroBase);
+            usuarioRepository.save(admin);
+
+            System.out.println("Centro vinculado ao ADMIN existente");
         }
     }
 }

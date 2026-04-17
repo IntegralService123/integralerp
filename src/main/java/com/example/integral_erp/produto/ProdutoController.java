@@ -52,6 +52,14 @@ public class ProdutoController {
         return produtoService.listarComEstoque(centroId, categoriaId, incluirInativos);
     }
 
+    @GetMapping("/catalogo")
+    public List<ProdutoResponseAdminDTO> listarCatalogo(
+        @RequestParam(required = false) Long categoria,
+        @RequestParam(required = false) String q
+    ) {
+        return produtoService.listarCatalogo(categoria, q);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProdutoResponseAdminDTO> buscar(@PathVariable Long id) {
         return ResponseEntity.ok(produtoService.buscarPorId(id));

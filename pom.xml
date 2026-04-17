@@ -11,6 +11,7 @@
 	<groupId>com.example</groupId>
 	<artifactId>demo</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<packaging>jar</packaging>
 	<name>integral-erp</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>
@@ -96,6 +97,13 @@
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
+		</dependency>
+
+		<!-- Mercado Pago -->
+		<dependency>
+			<groupId>com.mercadopago</groupId>
+			<artifactId>sdk-java</artifactId>
+			<version>2.1.7</version>
 		</dependency>
 
 		<!-- DevTools (opcional para dev) -->

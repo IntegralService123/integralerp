@@ -27,3 +27,6 @@ spring:
   usuarioadmin:
     email: ${ADMIN_EMAIL}
     password: ${ADMIN_PASSWORD}
+
+  mercadopago:
+    access-token: ${MP_ACCESS_TOKEN}

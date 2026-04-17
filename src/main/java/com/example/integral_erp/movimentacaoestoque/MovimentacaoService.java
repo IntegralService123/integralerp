@@ -1,5 +1,7 @@
 package com.example.integral_erp.movimentacaoestoque;
 
+import java.time.LocalDateTime;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +22,6 @@ import com.example.integral_erp.movimentacaoestoque.dto.MovimentacaoResponseDTO;
 import com.example.integral_erp.produto.Produto;
 import com.example.integral_erp.produto.ProdutoRepository;
 import com.example.integral_erp.usuario.Usuario;
-
 
 import lombok.RequiredArgsConstructor;
 
@@ -45,10 +46,6 @@ public class MovimentacaoService {
         // Apenas BASE_ADMIN pode dar entrada
         if (usuario.getRole() != Role.BASE_ADMIN) {
             throw new RuntimeException("Apenas BASE_ADMIN pode dar entrada de estoque");
-        }
-
-        if (usuario.getRole() != Role.BASE_ADMIN) {
-            throw new RuntimeException("Apenas BASE_ADMIN pode dar entrada");
         }
         
         Produto produto = produtoRepository.findById(request.produtoId())
@@ -93,14 +90,50 @@ public class MovimentacaoService {
 
 // =========================================================================
 
+    @Transactional
+    public void saidaVenda(Long produtoId, Integer quantidade) {
+
+        CentroDistribuicao centro = centroDistribuicaoRepository
+            .findByTipo(TipoCentro.BASE)
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("Centro BASE não encontrado"));   
+
+        Produto produto = produtoRepository.findById(produtoId)
+            .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+
+        centro = centroDistribuicaoRepository.findById(centro.getId())
+            .orElseThrow(() -> new RuntimeException("Centro não encontrado"));
+
+        Estoque estoque = estoqueRepository
+            .findByProdutoIdAndCentroId(produtoId, centro.getId())
+            .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
+
+        if (estoque.getQuantidade() < quantidade) {
+            throw new RuntimeException("Estoque insuficiente");
+        }
+
+        // baixa estoque
+        estoque.setQuantidade(estoque.getQuantidade() - quantidade);
+        estoqueRepository.save(estoque);
+
+        MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
+        movimentacao.setProduto(produto);
+        movimentacao.setCentro(centro);
+        movimentacao.setQuantidade(quantidade);
+        movimentacao.setTipo(TipoMovimentacao.SAIDA_VENDA);
+
+        movimentacaoRepository.save(movimentacao);
+    }
+    
+// =========================================================================
+
     @Transactional(readOnly = true)
-    public Page<MovimentacaoResponseDTO> listar(String tipo, Long produtoId, int page, int size) {
+    public Page<MovimentacaoResponseDTO> listar(String tipo, Long produtoId, LocalDateTime dataInicio, LocalDateTime dataFim, int page, int size) {
 
         Usuario usuario = SecurityUtils.getUsuarioLogado();
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
-        Page<MovimentacaoEstoque> resultado;
 
         TipoMovimentacao tipoEnum = null;
 
@@ -112,13 +145,39 @@ public class MovimentacaoService {
             }
         }
 
-        if (usuario.getRole() == Role.BASE_ADMIN) {
-            resultado = movimentacaoRepository.buscarComFiltros(tipoEnum, produtoId, pageable);
-        } else {
-            resultado = movimentacaoRepository.buscarComFiltrosEPorCentro(tipoEnum, produtoId, usuario.getCentro().getId(), pageable);
+        Long centroId = null;
+
+        if (usuario.getRole() != Role.BASE_ADMIN) {
+            centroId = usuario.getCentro().getId();
         }
 
-        return resultado.map(this::toResponse);
+        var spec = MovimentacaoSpecification.filtro(
+                tipoEnum,
+                produtoId,
+                centroId,
+                dataInicio,
+                dataFim
+        );
+
+        return movimentacaoRepository
+                .findAll(spec, pageable)
+                .map(this::toResponse);
+    }
+
+// ======================================================
+
+    public void validarEstoque(Long produtoId, Integer quantidade) {
+        Usuario usuario = SecurityUtils.getUsuarioLogado();
+
+        Long centroId = usuario.getCentro().getId();
+
+        Estoque estoque = estoqueRepository
+            .findByProdutoIdAndCentroId(produtoId, centroId)
+            .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
+
+        if (estoque.getQuantidade() < quantidade) {
+            throw new RuntimeException("Estoque insuficiente");
+        }
     }
 
 // ======================================================

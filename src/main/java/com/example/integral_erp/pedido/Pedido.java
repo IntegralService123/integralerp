@@ -5,7 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.example.integral_erp.common.Auditavel;
+import com.example.integral_erp.enums.FormaPagamento;
 import com.example.integral_erp.enums.StatusPedido;
+import com.example.integral_erp.enums.TipoPedido;
 import com.example.integral_erp.pedidoitem.PedidoItem;
 import com.example.integral_erp.usuario.Usuario;
 
@@ -43,6 +45,14 @@ public class Pedido extends Auditavel {
     private StatusPedido status;
 
     private String enderecoEntrega;
+
+    @Enumerated(EnumType.STRING)
+    private FormaPagamento formaPagamento;
+
+    private String clienteNome;
+
+    @Enumerated(EnumType.STRING)
+    private TipoPedido tipo;
 
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false)

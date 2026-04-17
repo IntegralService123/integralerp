@@ -10,12 +10,19 @@ import com.example.integral_erp.carrinho.Carrinho;
 import com.example.integral_erp.carrinho.CarrinhoRepository;
 import com.example.integral_erp.carrinhoItem.CarrinhoItem;
 import com.example.integral_erp.config.SecurityUtils;
+import com.example.integral_erp.enums.FormaPagamento;
 import com.example.integral_erp.enums.StatusPedido;
+import com.example.integral_erp.enums.TipoPedido;
+import com.example.integral_erp.movimentacaoestoque.MovimentacaoService;
+import com.example.integral_erp.pagamento.PagamentoService;
+import com.example.integral_erp.pedido.dto.ItemDTO;
+import com.example.integral_erp.pedido.dto.PedidoManualRequestDTO;
 import com.example.integral_erp.pedido.dto.PedidoRequestDTO;
 import com.example.integral_erp.pedido.dto.PedidoResponseDTO;
 import com.example.integral_erp.pedidoitem.PedidoItem;
 import com.example.integral_erp.pedidoitem.dto.PedidoItemResponseDTO;
 import com.example.integral_erp.produto.Produto;
+import com.example.integral_erp.produto.ProdutoRepository;
 import com.example.integral_erp.usuario.Usuario;
 
 
@@ -27,6 +34,9 @@ public class PedidoService {
 
     private final PedidoRepository pedidoRepository;
     private final CarrinhoRepository carrinhoRepository;
+    private final ProdutoRepository produtoRepository;
+	private final MovimentacaoService movimentacaoService;
+    private final PagamentoService pagamentoService;
 
     @Transactional
     public PedidoResponseDTO criar(PedidoRequestDTO request) {
@@ -44,7 +54,8 @@ public class PedidoService {
         Pedido pedido = new Pedido();
         pedido.setUsuario(usuario);
         pedido.setEnderecoEntrega(request.enderecoEntrega());
-        pedido.setStatus(StatusPedido.PENDENTE);
+        pedido.setStatus(StatusPedido.AGUARDANDO_PAGAMENTO);
+        pedido.setTipo(TipoPedido.ECOMMERCE);
 
         List<PedidoItem> itens = carrinho.getItens()
                 .stream()
@@ -63,9 +74,53 @@ public class PedidoService {
 
         pedidoRepository.save(pedido);
 
-        // 🔥 LIMPA CARRINHO (essencial)
+        pagamentoService.criarPagamento(pedido, FormaPagamento.valueOf(request.formaPagamento()));
+        System.out.println(request.formaPagamento());
+
+        // LIMPA CARRINHO
         carrinho.getItens().clear();
         carrinhoRepository.save(carrinho);
+
+        return toResponse(pedido);
+    }
+
+    @Transactional
+    public PedidoResponseDTO criarManual(PedidoManualRequestDTO request) {
+
+        Usuario usuario = SecurityUtils.getUsuarioLogado();
+
+        Pedido pedido = new Pedido();
+        pedido.setUsuario(usuario);
+        pedido.setStatus(StatusPedido.AGUARDANDO_PAGAMENTO);
+        pedido.setClienteNome(request.clienteNome());
+        pedido.setTipo(TipoPedido.MANUAL);
+
+        List<PedidoItem> itens = request.itens().stream()
+            .map(i -> criarItemManual(i, pedido))
+            .toList();
+
+        itens.forEach(pedido::adicionarItem);
+
+        BigDecimal total = itens.stream()
+            .map(i -> i.getPreco().multiply(BigDecimal.valueOf(i.getQuantidade())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        pedido.setSubtotal(total);
+        pedido.setFrete(BigDecimal.ZERO);
+        pedido.setTotal(total);
+
+        pedidoRepository.save(pedido);
+
+        pagamentoService.processarPagamentoManual(pedido, FormaPagamento.valueOf(request.formaPagamento()));
+        System.out.println(request.formaPagamento());
+
+        // BAIXA ESTOQUE AUTOMÁTICA
+        for (PedidoItem item : itens) {
+            movimentacaoService.saidaVenda(
+                item.getProdutoId(),
+                item.getQuantidade()
+            );
+        }
 
         return toResponse(pedido);
     }
@@ -113,7 +168,16 @@ public class PedidoService {
     	Pedido pedido = pedidoRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
 
-    	pedido.setStatus(StatusPedido.valueOf(status));
+        StatusPedido novoStatus = StatusPedido.valueOf(status);
+
+    	pedido.setStatus(novoStatus);
+
+        if (novoStatus == StatusPedido.PAGO) {
+            
+			for (PedidoItem item : pedido.getItens()) {
+				movimentacaoService.saidaVenda(item.getProdutoId(), item.getQuantidade());
+			}
+        }
 
     	return toResponse(pedido);
 	}
@@ -126,15 +190,31 @@ public class PedidoService {
 
         Produto produto = item.getProduto();
 
-        PedidoItem pi = new PedidoItem();
-        pi.setProdutoId(produto.getId());
-        pi.setProdutoNome(produto.getNome());
-        pi.setImagemUrl(produto.getImagemUrl());
-        pi.setPreco(produto.getPreco());
-        pi.setQuantidade(item.getQuantidade());
-        pi.setPedido(pedido);
+        PedidoItem pedidoItem = new PedidoItem();
+        pedidoItem.setProdutoId(produto.getId());
+        pedidoItem.setProdutoNome(produto.getNome());
+        pedidoItem.setImagemUrl(produto.getImagemUrl());
+        pedidoItem.setPreco(produto.getPreco());
+        pedidoItem.setQuantidade(item.getQuantidade());
+        pedidoItem.setPedido(pedido);
 
-        return pi;
+        return pedidoItem;
+    }
+
+    private PedidoItem criarItemManual(ItemDTO item, Pedido pedido) {
+
+        Produto produto = produtoRepository.findById(item.produtoId())
+            .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+
+        PedidoItem pedidoItem = new PedidoItem();
+        pedidoItem.setProdutoId(produto.getId());
+        pedidoItem.setProdutoNome(produto.getNome());
+        pedidoItem.setImagemUrl(produto.getImagemUrl());
+        pedidoItem.setPreco(produto.getPreco());
+        pedidoItem.setQuantidade(item.quantidade());
+        pedidoItem.setPedido(pedido);
+
+        return pedidoItem;
     }
 
     private PedidoResponseDTO toResponse(Pedido pedido) {
