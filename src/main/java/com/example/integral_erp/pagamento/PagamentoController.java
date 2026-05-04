@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.integral_erp.pagamento.dto.BoletoResponseDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoRequestDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoResponseDTO;
 import com.example.integral_erp.pagamento.dto.PagamentoStatusDTO;
@@ -46,9 +47,22 @@ public class PagamentoController {
     @PostMapping("/{pedidoId}/cartao")
     public CartaoPagamentoResponseDTO pagarCartao(@PathVariable Long pedidoId, @RequestBody CartaoPagamentoRequestDTO dto) {
 
-        System.out.println("ID recebido: " + pedidoId);
+        System.out.println("======= ENTRADA CONTROLLER =======");
+        System.out.println("Pedido ID: " + pedidoId);
+        System.out.println("DTO recebido: " + dto);
+        
         return pagamentoService.criarPagamentoCartao(pedidoId, dto);
     }
+
+    @PostMapping("/{pedidoId}/boleto")
+    public BoletoResponseDTO gerarBoleto(@PathVariable Long pedidoId) {
+        
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
+        
+        return pagamentoService.criarPagamentoBoleto(pedido);    
+    }
+    
 
     @GetMapping("/{pedidoId}/status")
     public PagamentoStatusDTO status (@PathVariable Long pedidoId) {
@@ -59,16 +73,21 @@ public class PagamentoController {
     public ResponseEntity<Void> webhook(@RequestBody Map<String, Object> body) {
 
         try {
-            Map<String, Object> data = (Map<String, Object>) body.get("data");
+            String action = (String) body.get("action");
+            String type = (String) body.get("type");
 
-            if (data != null && data.get("id") != null) {
+            if ("payment".equals(type) || "payment.updated".equals(action)) {
+                Map<String, Object> data = (Map<String, Object>) body.get("data");
                 String paymentId = data.get("id").toString();
 
                 PaymentClient client = new PaymentClient();
                 Payment payment = client.get(Long.valueOf(paymentId));
 
                 if ("approved".equals(payment.getStatus())) {
-                    pagamentoService.confirmarPagamento(paymentId);
+                    pagamentoService.processarNotificacaoGateway(paymentId);
+                    System.out.println("SUCESSO: Pagamento aprovado processado.");
+                } else {
+                    System.out.println("AVISO: Pagamento ainda com status: " + payment.getStatus());
                 }
             }
 

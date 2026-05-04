@@ -30,3 +30,6 @@ spring:
 
   mercadopago:
     access-token: ${MP_ACCESS_TOKEN}
+
+  melhorenvio:
+    token: ${MELHOR_ENVIO_TOKEN}

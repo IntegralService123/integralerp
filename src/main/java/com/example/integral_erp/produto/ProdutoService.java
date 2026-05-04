@@ -62,6 +62,11 @@ public class ProdutoService {
         produto.setPreco(request.preco());
         produto.setCategoria(categoria);
         produto.setAtivo(true);
+        produto.setPeso(request.peso());
+        produto.setLargura(request.largura());
+        produto.setAltura(request.altura());
+        produto.setComprimento(request.comprimento());
+        produto.setDiametro(request.diametro());
 
         produto = produtoRepository.save(produto);
 
@@ -117,17 +122,24 @@ public class ProdutoService {
     public List<ProdutoEstoqueResponseDTO> listarComEstoque(Long centroId, Long categoriaId, Boolean incluirInativos) {
 
         Usuario usuario = SecurityUtils.getUsuarioLogado();
-
         boolean somenteAtivos = incluirInativos == null || !incluirInativos;
 
         Long centroFinal;
 
         if (usuario.getRole() == Role.BASE_ADMIN) {
             if (centroId == null) {
-                throw new RuntimeException("Centro obrigatório para admin");
-            }
+                centroFinal = centroRepository.findByTipo(TipoCentro.BASE)
+                    .stream().findFirst()
+                    .map(CentroDistribuicao::getId)
+                    .orElseThrow(() -> new RuntimeException("Centro BASE não encontrado no sistema"));
+            } else {
+            //centroFinal = usuario.getCentro().getId();
             centroFinal = centroId;
+            }
         } else {
+            if (usuario.getCentro() == null) {
+                throw new RuntimeException("Usuário não possui um centro de distribuição vinculado.");
+            }
             centroFinal = usuario.getCentro().getId();
         }
 
@@ -194,6 +206,11 @@ public class ProdutoService {
         produto.setEstoqueMinimo(request.estoqueMinimo());
         produto.setPreco(request.preco());
         produto.setCategoria(categoria);
+        produto.setPeso(request.peso());
+        produto.setLargura(request.largura());
+        produto.setAltura(request.altura());
+        produto.setComprimento(request.comprimento());
+        produto.setDiametro(request.diametro());
 
         produto = produtoRepository.save(produto);
 
@@ -253,7 +270,12 @@ public class ProdutoService {
             produto.getCategoria().getId(),
             produto.getCategoria().getNome(),
             produto.getPreco(),
-            produto.getAtivo()
+            produto.getAtivo(),
+            produto.getPeso(),
+            produto.getLargura(),
+            produto.getAltura(),
+            produto.getComprimento(),
+            produto.getDiametro()
         );
     }
 

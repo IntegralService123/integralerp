@@ -52,6 +52,9 @@ public class Pagamento extends Auditavel {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal valor;
 
+    @Column(name = "linha_digitavel")
+    private String linhaDigitavel;
+
     @Column(name = "transacao_gateway_id")
     private String transacaoGatewayId;
 
@@ -60,6 +63,12 @@ public class Pagamento extends Auditavel {
 
     @Column(name = "payload", columnDefinition = "TEXT")
     private String payload;
+
+    @Column(name = "qr_code", columnDefinition = "TEXT")
+    private String qrCode;
+
+    @Column(name = "qr_code_base64", columnDefinition = "TEXT")
+    private String qrCodeBase64;
 
     private LocalDateTime dataConfirmacao;
 

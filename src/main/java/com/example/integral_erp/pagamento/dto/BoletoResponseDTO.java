@@ -3,10 +3,11 @@ package com.example.integral_erp.pagamento.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record PixResponseDTO(
-    String qrCode,
-    String qrCodeBase64,
+public record BoletoResponseDTO(
+    String barcode,
+    String digitableLine,
+    String pdfUrl,
     BigDecimal valor,
     String status,
-    LocalDateTime dataExpiracao
+    LocalDateTime dataVencimento
 ) {}

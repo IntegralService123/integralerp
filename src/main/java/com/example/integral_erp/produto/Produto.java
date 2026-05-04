@@ -45,4 +45,16 @@ public class Produto extends Auditavel{
     @ManyToOne
     @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria;
+
+    @Column(precision = 10, scale = 3)
+    private BigDecimal peso; // Em quilogramas (ex: 0.500 para 500g)
+
+    private BigDecimal largura; // Em cm
+
+    private BigDecimal altura; // Em cm
+
+    private BigDecimal comprimento; // Em cm
+
+    private BigDecimal diametro; // para produtos cilíndricos (tubos)
+
 }

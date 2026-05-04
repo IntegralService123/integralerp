@@ -12,5 +12,10 @@ public record ProdutoResponseAdminDTO(
         Long categoriaId,
         String categoriaNome,
         BigDecimal preco,
-        Boolean ativo
+        Boolean ativo,
+        BigDecimal peso,
+        BigDecimal largura,
+        BigDecimal altura,
+        BigDecimal comprimento,
+        BigDecimal diametro
 ) {}

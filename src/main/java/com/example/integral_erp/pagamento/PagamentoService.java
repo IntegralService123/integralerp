@@ -1,11 +1,16 @@
 package com.example.integral_erp.pagamento;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -18,6 +23,7 @@ import com.example.integral_erp.enums.GatewayPagamento;
 import com.example.integral_erp.enums.StatusPagamento;
 import com.example.integral_erp.enums.StatusPedido;
 import com.example.integral_erp.movimentacaoestoque.MovimentacaoService;
+import com.example.integral_erp.pagamento.dto.BoletoResponseDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoRequestDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoResponseDTO;
 import com.example.integral_erp.pagamento.dto.PagamentoStatusDTO;
@@ -26,6 +32,7 @@ import com.example.integral_erp.pedido.Pedido;
 import com.example.integral_erp.pedido.PedidoRepository;
 import com.example.integral_erp.pedidoitem.PedidoItem;
 import com.mercadopago.MercadoPagoConfig;
+import com.mercadopago.client.common.IdentificationRequest;
 import com.mercadopago.client.payment.PaymentClient;
 import com.mercadopago.client.payment.PaymentCreateRequest;
 import com.mercadopago.client.payment.PaymentPayerRequest;
@@ -63,152 +70,188 @@ public class PagamentoService {
     }
 
     public PixResponseDTO criarPagamentoPix(Pedido pedido) {
+
         try {
+
+            Optional<Pagamento> pagamentoOpt = pagamentoRepository.findByPedidoId(pedido.getId());
+
+            if (pagamentoOpt.isPresent()) {
+                Pagamento pag = pagamentoOpt.get();
+                
+                // Verificamos se é PIX, está PENDENTE e se o QR Code ainda não expirou
+                if (pag.getFormaPagamento() == FormaPagamento.PIX && 
+                    pag.getStatus() == StatusPagamento.PENDENTE &&
+                    pag.getDataExpiracao() != null && 
+                    pag.getDataExpiracao().isAfter(LocalDateTime.now().plusSeconds(10))) {
+                    
+                    // Se o QR Code já estiver salvo no banco, retorna ele direto
+                    if (pag.getQrCode() != null) {
+                        return new PixResponseDTO(
+                            pag.getQrCode(),
+                            pag.getQrCodeBase64(),
+                            pag.getValor(),
+                            pag.getStatus().name(),
+                            pag.getDataExpiracao()
+                        );
+                    }
+                }
+            }
+
             String url = "https://api.mercadopago.com/v1/payments";
             String accessToken = properties.getAccessToken();
-
             RestTemplate restTemplate = new RestTemplate();
-
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(accessToken);
             
-            // Use apenas o pedido.getId() ou uma lógica que não mude em milissegundos 
-            // para que a idempotência realmente funcione se houver um retry.
-            headers.set("X-Idempotency-Key", "idemp_pix_pedido_" + pedido.getId());
+            headers.set("X-Idempotency-Key", "pix_" + pedido.getId() + "_" + System.currentTimeMillis());
 
-            // CONSTRUÇÃO DO BODY (Idêntico ao CURL)
+            OffsetDateTime expiracao = OffsetDateTime.now(ZoneId.of("America/Sao_Paulo")).plusMinutes(30);
+            String dateExpiration = expiracao.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ"));
+
             Map<String, Object> body = new HashMap<>();
             body.put("transaction_amount", pedido.getTotal());
             body.put("description", "Pedido #" + pedido.getId());
             body.put("payment_method_id", "pix");
+            body.put("date_of_expiration", dateExpiration);
             
-            // Payer simples como no seu CURL
             Map<String, Object> payer = new HashMap<>();
-            payer.put("email", "email_aleatorio_qualquer@gmail.com"); // Recomendo usar pedido.getCliente().getEmail()
+            payer.put("email", pedido.getUsuario().getEmail());
             body.put("payer", payer);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-            
-            // Fazendo a chamada
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
             Map<String, Object> responseBody = response.getBody();
 
-            if (responseBody == null) throw new RuntimeException("Resposta vazia do Mercado Pago");
-
-            // EXTRAÇÃO DOS DADOS (Com segurança para evitar NullPointerException)
+            // EXTRAÇÃO DOS DADOS
             Map<String, Object> poi = (Map<String, Object>) responseBody.get("point_of_interaction");
             Map<String, Object> td = (Map<String, Object>) poi.get("transaction_data");
-
             String qrCode = (String) td.get("qr_code");
             String qrCodeBase64 = (String) td.get("qr_code_base64");
             String mpId = responseBody.get("id").toString();
 
             // Salva no banco (Sincronizando com o Gateway)
-            Pagamento pagamento = pagamentoRepository.findByPedidoId(pedido.getId())
-                    .orElseThrow(() -> new RuntimeException("Pagamento não encontrado no banco"));
-            
+            Pagamento pagamento = pagamentoOpt.orElseGet(() -> {
+                Pagamento newPag = new Pagamento();
+                newPag.setPedido(pedido);
+                newPag.setFormaPagamento(FormaPagamento.PIX);
+                newPag.setGateway(GatewayPagamento.MERCADO_PAGO);
+                return newPag;
+            });
+
+            pagamento.setStatus(StatusPagamento.PENDENTE);
+            pagamento.setValor(pedido.getTotal());
             pagamento.setTransacaoGatewayId(mpId);
+            pagamento.setQrCode(qrCode);
+            pagamento.setQrCodeBase64(qrCodeBase64);
+            pagamento.setDataExpiracao(expiracao.toLocalDateTime()); // Salva os 30 min exatos do MP
+            
             pagamentoRepository.save(pagamento);
 
             return new PixResponseDTO(
-                    qrCode,
-                    qrCodeBase64,
-                    pedido.getTotal(),
-                    pagamento.getStatus().name(),
-                    pagamento.getDataExpiracao()
+                qrCode,
+                qrCodeBase64,
+                pedido.getTotal(),
+                pagamento.getStatus().name(),
+                pagamento.getDataExpiracao()
             );
 
-        } catch (HttpClientErrorException e) {
-            // Log detalhado para você ver EXATAMENTE por que o MP recusou
-            System.err.println("Erro do Mercado Pago: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Mercado Pago recusou o Pix: " + e.getResponseBodyAsString());
+        } catch (HttpServerErrorException e) {
+            // Captura especificamente o erro 500 do Mercado Pago
+            System.err.println("ERRO 500 NO MP: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Mercado Pago está instável. Tente novamente em instantes.");
         } catch (Exception e) {
-            System.err.println("Erro interno ao gerar Pix: " + e.getMessage());
-            throw new RuntimeException("Erro interno no servidor ao processar pagamento");
+            System.err.println("Erro Geral: " + e.getMessage());
+            throw new RuntimeException("Erro ao processar pagamento Pix.");
         }
-    
-
-        // Pagamento pagamento = pagamentoRepository.findByPedidoId(pedido.getId())
-        //     .orElseThrow();
-
-        // String accessToken = properties.getAccessToken();
-
-        // MercadoPagoConfig.setAccessToken(accessToken);
-     
-        // try {
-        //     if (accessToken == null || accessToken.isBlank()) {
-        //         return new PixResponseDTO(
-        //             "PIX-FAKE-CODE",
-        //             "BASE64_FAKE",
-        //             pedido.getTotal(),
-        //             pagamento.getStatus().name(),
-        //             pagamento.getDataExpiracao()
-        //         );
-        //     }
-
-        //     System.out.println("TOKEN: " + accessToken);
-
-        //     //PaymentClient client = new PaymentClient();
-
-        //     Usuario usuario = SecurityUtils.getUsuarioLogado();
-
-        //     PaymentCreateRequest request = 
-        //         PaymentCreateRequest.builder()
-        //             .transactionAmount(pedido.getTotal().abs())
-        //             .description("Pedido #" + pedido.getId())
-        //             .paymentMethodId("pix")
-        //             .notificationUrl("https://uptake-zoologist-prescribe.ngrok-free.dev/api/pagamentos/webhook")
-        //             .payer(
-        //                 PaymentPayerRequest.builder()
-        //                     .email("test_user_8043693076165900002@testuser.com")
-        //                     .identification(
-        //                         IdentificationRequest.builder()
-        //                         .type("CPF")
-        //                         .number("12345678909")
-        //                         .build()
-        //                     )
-        //                     .build()
-        //             )
-        //             .dateOfExpiration(OffsetDateTime.now().plusMinutes(30))
-        //             .build();
-
-        //     //Payment payment = client.create(request);
-
-        //     System.out.println("MP RESPONSE: " + payment);
-
-        //     if (payment.getPointOfInteraction() == null || payment.getPointOfInteraction().getTransactionData() == null) {
-        //         throw new RuntimeException("Mercado Pago não retornou dados de PIX");
-        //     }
-
-        //     String qrCode = payment.getPointOfInteraction()
-        //         .getTransactionData()
-        //         .getQrCode();
-
-        //     String qrCodeBase64 = payment.getPointOfInteraction()
-        //         .getTransactionData()
-        //         .getQrCodeBase64();
-
-        //     pagamento.setTransacaoGatewayId(payment.getId().toString());
-        //     pagamentoRepository.save(pagamento);
-            
-        //     return new PixResponseDTO(qrCode, qrCodeBase64, pedido.getTotal(), pagamento.getStatus().name(), pagamento.getDataExpiracao());
-        
-        // } catch (MPApiException e) {
-        //     System.out.println("STATUS: " + e.getStatusCode());
-        //     System.out.println("RESPONSE: " + e.getApiResponse().getContent());
-        //     throw new RuntimeException("Erro Mercado Pago", e);
-
-        // } catch (Exception e) {
-            
-        //     e.printStackTrace();
-        //     throw new RuntimeException("Erro ao gerar PIX", e);
-        // } 
-
     }
 
+    // @Transactional
+    // public CartaoPagamentoResponseDTO criarPagamentoCartao (Long pedidoId, CartaoPagamentoRequestDTO dto) {
+
+    //     System.out.println("DEBUG DTO RECEBIDO: " + dto);
+
+    //     String accessToken = properties.getAccessToken();
+    //     MercadoPagoConfig.setAccessToken(accessToken);
+
+    //     try {
+    //         PaymentClient client = new PaymentClient();
+
+    //         Pedido pedido = pedidoRepository.findById(pedidoId)
+    //             .orElseThrow(() -> new RuntimeException("Pedido não encontrado: " + pedidoId));
+
+    //         System.out.println("Valor do pedido:" + pedido.getTotal());
+
+    //         if (StatusPedido.PAGO.equals(pedido.getStatus())) {
+    //             throw new RuntimeException("Este pedido já foi processado e pago");
+    //         }
+
+    //         Integer parcelaReal = "CARTAO_DEBITO".equals(dto.tipo()) ? 1 : dto.installments();
+
+    //         PaymentCreateRequest request = PaymentCreateRequest.builder()
+    //                 .transactionAmount(pedido.getTotal())
+    //                 .token(dto.token())
+    //                 .issuerId(dto.issuerId())
+    //                 .description("Pedido #" + pedido.getId())
+    //                 .installments(parcelaReal)
+    //                 .paymentMethodId(dto.paymentMethodId())
+    //                 .payer(PaymentPayerRequest.builder().email(dto.email()).build())
+    //                 .build();
+
+    //         Map<String, String> headers = new HashMap<>();
+    //         headers.put("X-Idempotency-Key", pedidoId.toString() + "-" + dto.token().substring(0,5));
+
+    //         MPRequestOptions options = MPRequestOptions.builder()
+    //             .customHeaders(headers)
+    //             .build();
+
+    //         Payment payment = client.create(request, options);
+
+    //         String mercadoPagoId = payment.getId().toString();
+    //         String tipoPagamentoMP = payment.getPaymentTypeId();
+
+    //         Pagamento pagamento = pagamentoRepository.findByPedidoId(pedidoId)
+    //             .orElse(new Pagamento());
+
+    //         pagamento.setPedido(pedido);
+    //         pagamento.setGateway(GatewayPagamento.MERCADO_PAGO);
+    //         pagamento.setValor(pedido.getTotal());
+    //         pagamento.setTransacaoGatewayId(mercadoPagoId);
+
+    //         if ("debit_card".equalsIgnoreCase(tipoPagamentoMP)) {
+    //             pagamento.setFormaPagamento(FormaPagamento.CARTAO_DEBITO);
+    //         } else {
+    //             pagamento.setFormaPagamento(FormaPagamento.CARTAO_CREDITO);
+    //         }
+
+    //         if ("approved".equalsIgnoreCase(payment.getStatus())) {
+                
+    //             aprovarPagamentoCompleto(pagamento);
+            
+    //         } else {
+    //             pagamento.setStatus(StatusPagamento.PENDENTE);
+    //             pagamentoRepository.save(pagamento);
+    //             System.out.println("PAGAMENTO VIA CARTÃO AGUARDANDO: ID " + mercadoPagoId);
+    //         }
+
+    //         return new CartaoPagamentoResponseDTO(
+    //             payment.getStatus(),
+    //             payment.getStatusDetail()
+    //         );
+            
+    //     } catch (MPApiException e) {
+    //         System.err.println("Erro API Mercado Pago:");
+    //         String content = e.getApiResponse().getContent();
+    //         System.err.println("Detalhes: " + content);
+    //         throw new RuntimeException("Erro Mercado Pago: " + content, e);
+        
+    //     } catch (MPException e) {
+    //         throw new RuntimeException("Erro geral Mercado Pago", e);
+    //     }
+    // }
+
     @Transactional
-    public CartaoPagamentoResponseDTO criarPagamentoCartao (Long pedidoId, CartaoPagamentoRequestDTO dto) {
+    public CartaoPagamentoResponseDTO criarPagamentoCartao(Long pedidoId, CartaoPagamentoRequestDTO dto) {
 
         String accessToken = properties.getAccessToken();
         MercadoPagoConfig.setAccessToken(accessToken);
@@ -223,80 +266,215 @@ public class PagamentoService {
                 throw new RuntimeException("Este pedido já foi processado e pago");
             }
 
-            PaymentCreateRequest request = 
-                PaymentCreateRequest.builder()
-                    .transactionAmount(pedido.getTotal())
-                    .token(dto.token())
-                    .description("Pedido #" + pedido.getId())
-                    .installments(dto.installments())
-                    .paymentMethodId(dto.paymentMethodId())
-                    .payer(
-                        PaymentPayerRequest.builder()
-                            .email(dto.email())
-                            .build())
-                    .build();
+            System.out.println("======= DEBUG SERVICE (CARTÃO) =======");
+            System.out.println("Token: " + (dto.token() != null ? dto.token().substring(0, 10) + "..." : "NULL"));
+            System.out.println("Payment Method: " + dto.paymentMethodId());
+            System.out.println("Installments: " + dto.installments());
+            System.out.println("Email Payer: " + dto.email());
 
-            Map<String, String> headers = new HashMap<>();
-            headers.put("X-Idempotency-Key", pedidoId.toString() + "-" + dto.token().substring(0,5));
-
-            MPRequestOptions options = MPRequestOptions.builder()
-                .customHeaders(headers)
+            // 1. Configuração da Requisição
+            PaymentCreateRequest request = PaymentCreateRequest.builder()
+                .transactionAmount(pedido.getTotal())
+                .token(dto.token())
+                .description("Pedido #" + pedido.getId())
+                .installments(dto.installments())
+                .paymentMethodId(dto.paymentMethodId())
+                .payer(PaymentPayerRequest.builder()
+                    .email(dto.email())
+                    .identification(IdentificationRequest.builder()
+                        .type("CPF")
+                        .number("12345678909") // CPF de teste padrão MP
+                        .build())
+                    .build())
                 .build();
 
+            String idempotencyKey = UUID.randomUUID().toString();
+            System.out.println("Chave de Idempotência: " + idempotencyKey);
+
+            Map<String, String> headers = new HashMap<>();
+            //headers.put("X-Idempotency-Key", pedidoId.toString() + "-" + dto.token().substring(0, 5));
+            headers.put("X-Idempotency-Key", idempotencyKey);
+
+            MPRequestOptions options = MPRequestOptions.builder().customHeaders(headers).build();
+
+            // 2. Chamada ao Gateway
             Payment payment = client.create(request, options);
+            String mercadoPagopId = payment.getId().toString();
 
+            // 3. PERSISTÊNCIA DA ENTIDADE PAGAMENTO (O que estava faltando)
+            Pagamento pagamento = pagamentoRepository.findByPedidoId(pedidoId)
+                .orElse(new Pagamento());
+            
+            pagamento.setPedido(pedido);
+            pagamento.setFormaPagamento(FormaPagamento.CARTAO_CREDITO);
+            pagamento.setGateway(GatewayPagamento.MERCADO_PAGO);
+            pagamento.setValor(pedido.getTotal());
+            pagamento.setTransacaoGatewayId(mercadoPagopId); // Agora o Webhook vai encontrar este ID
+
+            // 4. Lógica de Aprovação Imediata ou Pendência
             if ("approved".equalsIgnoreCase(payment.getStatus())) {
-                
-                pedido.setStatus(StatusPedido.PAGO);
-
-                for (PedidoItem item : pedido.getItens()) {
-                    movimentacaoService.saidaVenda(item.getProdutoId(), item.getQuantidade());
-                }
-
-                pedidoRepository.save(pedido);
+                // Se o cartão aprovou na hora, usa o método completo (estoque + status)
+                aprovarPagamentoCompleto(pagamento);
+            } else {
+                // Se cair em análise (in_process) ou rejeitado, salva o status mas não baixa estoque
+                pagamento.setStatus(StatusPagamento.PENDENTE); 
+                pagamentoRepository.save(pagamento);
+                System.out.println("PAGAMENTO VIA CARTÃO AGUARDANDO: ID " + mercadoPagopId);
             }
 
             return new CartaoPagamentoResponseDTO(
                 payment.getStatus(),
                 payment.getStatusDetail()
             );
-            
+
         } catch (MPApiException e) {
-            System.err.println("Erro API Mercado Pago:");
             String content = e.getApiResponse().getContent();
-            System.err.println("Detalhes: " + content);
-            throw new RuntimeException("Erro Mercado Pago: " + content, e);
-        
+            throw new RuntimeException("Erro API Mercado Pago: " + content, e);
         } catch (MPException e) {
             throw new RuntimeException("Erro geral Mercado Pago", e);
+        }
+    }
+
+    @Transactional
+    public BoletoResponseDTO criarPagamentoBoleto(Pedido pedido) {
+        try {
+            Optional<Pagamento> pagamentoOpt = pagamentoRepository.findByPedidoId(pedido.getId());
+
+            if (pagamentoOpt.isPresent()) {
+                Pagamento pag = pagamentoOpt.get();
+                if (StatusPagamento.PENDENTE.equals(pag.getStatus()) &&
+                    pag.getDataExpiracao() != null &&
+                    pag.getDataExpiracao().isAfter(LocalDateTime.now()) &&
+                    pag.getLinhaDigitavel() != null) {
+
+                    return new BoletoResponseDTO(
+                        pag.getPayload(),
+                        pag.getLinhaDigitavel(),
+                        pag.getUrlPagamento(),
+                        pag.getValor(),
+                        pag.getStatus().name(),
+                        pag.getDataExpiracao()
+                    );
+                }
+            }
+
+            String url = "https://api.mercadopago.com/v1/payments";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(properties.getAccessToken());
+            headers.set("X-Idempotency-Key", "bol_" + pedido.getId() + "_" + System.currentTimeMillis());
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("transaction_amount", pedido.getTotal());
+            body.put("description", "Pedido #" + pedido.getId());
+            body.put("payment_method_id", "bolbradesco");
+
+            Map<String, Object> payer = new HashMap<>();
+            payer.put("email", pedido.getUsuario().getEmail());
+            payer.put("first_name", "Lucas");
+            payer.put("last_name", "Ferraz");
+
+            Map<String, Object> identification = new HashMap<>();
+            identification.put("type", "CPF");
+            identification.put("number", "70815992068");
+            payer.put("identification", identification);
+
+            Map<String, Object> address = new HashMap<>();
+            address.put("zip_code", "04571020");
+            address.put("street_name", "Avenida das Nações Unidas");
+            address.put("street_number", "3003");
+            address.put("neighborhood", "Bonfim");
+            address.put("city", "Osasco");
+            address.put("federal_unit", "SP");
+
+            payer.put("address", address);
+
+            body.put("payer", payer);
+
+            // Define o vencimento para 3 dias a partir de agora
+            OffsetDateTime vencimento = OffsetDateTime.now(ZoneId.of("America/Sao_Paulo")).plusDays(3);
+
+            String dateExpiration = vencimento.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            //body.put("date_of_expiration", dateExpiration);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<Map> response = new RestTemplate().postForEntity(url, entity, Map.class);
+            Map<String, Object> responseBody = response.getBody();
+
+            Map<String, Object> transactionDetails = (Map<String, Object>) responseBody.get("transaction_details");
+
+            String barcode = "";
+            if (responseBody.containsKey("barcode")) {
+                barcode = (String) ((Map<String, Object>) responseBody.get("barcode")).get("content");
+            }
+            String digitableLine = (String) transactionDetails.get("digitable_line");
+            String pdfUrl = (String) transactionDetails.get("external_resource_url");
+            String mercadoPagoId = responseBody.get("id").toString();
+
+            Pagamento pagamento = pagamentoOpt.orElse(new Pagamento());
+            pagamento.setPedido(pedido);
+            pagamento.setValor(pedido.getTotal());
+            pagamento.setFormaPagamento(FormaPagamento.BOLETO);
+            pagamento.setGateway(GatewayPagamento.MERCADO_PAGO);
+            pagamento.setStatus(StatusPagamento.PENDENTE);
+
+            pagamento.setTransacaoGatewayId(mercadoPagoId);
+            pagamento.setLinhaDigitavel(digitableLine);
+
+            pagamento.setPayload(barcode);
+            pagamento.setUrlPagamento(pdfUrl);
+
+            pagamento.setDataExpiracao(OffsetDateTime.now(ZoneId.of("America/Sao_Paulo")).plusDays(3).toLocalDateTime());
+
+            pagamentoRepository.save(pagamento);
+
+            return new BoletoResponseDTO(
+                barcode,
+                digitableLine,
+                pdfUrl,
+                pedido.getTotal(),
+                "PENDENTE",
+                pagamento.getDataExpiracao()
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Erro ao processar boleto: " + e.getMessage());
         }
     }
 
     public PagamentoStatusDTO buscarStatus(Long pedidoId) {
 
         Pagamento pagamento = pagamentoRepository.findByPedidoId(pedidoId)
-            .orElseThrow();
+            .orElseThrow(() -> new RuntimeException("Pagamento não encontrado"));
+
+        if (pagamento.getStatus() == StatusPagamento.PENDENTE) {
+            try {
+                PaymentClient client = new PaymentClient();
+                Payment mpPayment = client.get(Long.parseLong(pagamento.getTransacaoGatewayId()));
+
+                String mpStatus = mpPayment.getStatus();
+
+                if ("approved".equalsIgnoreCase(mpStatus)) {
+                    pagamento.setStatus(StatusPagamento.APROVADO);
+                    pagamento.getPedido().setStatus(StatusPedido.PAGO);
+                    pagamentoRepository.save(pagamento);
+                }
+                else if ("cancelled".equalsIgnoreCase(mpStatus) || "expired".equalsIgnoreCase(mpStatus)) {
+                    pagamento.setStatus(StatusPagamento.CANCELADO);
+                    pagamento.getPedido().setStatus(StatusPedido.CANCELADO);
+                    pagamentoRepository.save(pagamento);
+                }
+            } catch (Exception e) {
+                System.err.println("Erro ao consultar Mercado Pago no polling: " + e.getMessage());
+            }
+        }
 
         return new PagamentoStatusDTO(
             pagamento.getStatus().name(),
             pagamento.getPedido().getStatus().name()
         );
-    }
-
-    @Transactional
-    public void aprovarPagamento(Pagamento pagamento) {
-
-        if (pagamento.getStatus() == StatusPagamento.APROVADO) return;
-
-        pagamento.setStatus(StatusPagamento.APROVADO);
-        pagamento.setDataConfirmacao(LocalDateTime.now());
-
-        Pedido pedido = pagamento.getPedido();
-        pedido.setStatus(StatusPedido.PAGO);
-
-        for (PedidoItem item : pedido.getItens()) {
-            movimentacaoService.saidaVenda(item.getProdutoId(), item.getQuantidade());
-        }
     }
 
     @Transactional
@@ -317,20 +495,6 @@ public class PagamentoService {
         }
     }
 
-    @Transactional
-    public void confirmarPagamento(String transacaoId) {
-
-        Pagamento pagamento = pagamentoRepository
-                .findByTransacaoGatewayId(transacaoId)
-                .orElseThrow(() -> new RuntimeException("Pagamento não encontrado"));
-
-        pagamento.setStatus(StatusPagamento.APROVADO);
-        pagamento.setDataConfirmacao(LocalDateTime.now());
-
-        Pedido pedido = pagamento.getPedido();
-        pedido.setStatus(StatusPedido.PAGO);
-    }
-
     public Pagamento buscarPorPedido(Long pedidoId) {
         return pagamentoRepository.findByPedidoId(pedidoId)
                 .orElseThrow(() -> new RuntimeException("Pagamento não encontrado"));
@@ -344,5 +508,36 @@ public class PagamentoService {
         pagamento.setDataConfirmacao(LocalDateTime.now());
 
         return pagamentoRepository.save(pagamento);
+    }
+
+    @Transactional
+    public void processarNotificacaoGateway(String transacaoId) {
+
+        Pagamento pagamento = pagamentoRepository
+                .findByTransacaoGatewayId(transacaoId)
+                .orElseThrow(() -> new RuntimeException("Pagamento " + transacaoId + " não encontrado no banco local."));
+
+        if (StatusPagamento.APROVADO.equals(pagamento.getStatus())) {
+            return;
+        }
+
+        aprovarPagamentoCompleto(pagamento);
+    }
+
+    @Transactional
+    public void aprovarPagamentoCompleto(Pagamento pagamento) {
+
+        pagamento.setStatus(StatusPagamento.APROVADO);
+        pagamento.setDataConfirmacao(LocalDateTime.now());
+
+        Pedido pedido = pagamento.getPedido();
+        pedido.setStatus(StatusPedido.PAGO);
+
+        for (PedidoItem item : pedido.getItens()) {
+            movimentacaoService.saidaVenda(item.getProdutoId(), item.getQuantidade());
+        }
+
+        pagamentoRepository.save(pagamento);
+        System.out.println("PAGAMENTO APROVADO E ESTOQUE ATUALIZADO: Pedido # " + pedido.getId());
     }
 }

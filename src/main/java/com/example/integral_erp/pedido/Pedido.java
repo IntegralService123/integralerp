@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.example.integral_erp.common.Auditavel;
+import com.example.integral_erp.endereco.Endereco;
 import com.example.integral_erp.enums.FormaPagamento;
 import com.example.integral_erp.enums.StatusPedido;
 import com.example.integral_erp.enums.TipoPedido;
@@ -44,7 +45,9 @@ public class Pedido extends Auditavel {
     @Enumerated(EnumType.STRING)
     private StatusPedido status;
 
-    private String enderecoEntrega;
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "endereco_id")
+    private Endereco endereco;
 
     @Enumerated(EnumType.STRING)
     private FormaPagamento formaPagamento;

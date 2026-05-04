@@ -10,5 +10,10 @@ public record ProdutoRequest(
         Long categoriaId,
         String imagemUrl,
         BigDecimal preco,
-        Long centroId
+        Long centroId,
+        BigDecimal peso,
+        BigDecimal largura,
+        BigDecimal altura,
+        BigDecimal comprimento,
+        BigDecimal diametro
 ) {}

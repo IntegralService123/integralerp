@@ -10,6 +10,8 @@ import com.example.integral_erp.carrinho.Carrinho;
 import com.example.integral_erp.carrinho.CarrinhoRepository;
 import com.example.integral_erp.carrinhoItem.CarrinhoItem;
 import com.example.integral_erp.config.SecurityUtils;
+import com.example.integral_erp.endereco.Endereco;
+import com.example.integral_erp.endereco.dto.EnderecoResponseDTO;
 import com.example.integral_erp.enums.FormaPagamento;
 import com.example.integral_erp.enums.StatusPedido;
 import com.example.integral_erp.enums.TipoPedido;
@@ -53,7 +55,19 @@ public class PedidoService {
 
         Pedido pedido = new Pedido();
         pedido.setUsuario(usuario);
-        pedido.setEnderecoEntrega(request.enderecoEntrega());
+
+        Endereco endereco = new Endereco();
+        endereco.setCep(request.endereco().cep());
+        endereco.setLogradouro(request.endereco().logradouro());
+        endereco.setNumero(request.endereco().numero());
+        endereco.setComplemento(request.endereco().complemento());
+        endereco.setBairro(request.endereco().bairro());
+        endereco.setCidade(request.endereco().cidade());
+        endereco.setUf(request.endereco().uf());
+        endereco.setApelido(request.endereco().apelido());
+        endereco.setUsuario(usuario);
+
+        pedido.setEndereco(endereco);
         pedido.setStatus(StatusPedido.AGUARDANDO_PAGAMENTO);
         pedido.setTipo(TipoPedido.ECOMMERCE);
 
@@ -69,8 +83,8 @@ public class PedidoService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         pedido.setSubtotal(subtotal);
-        pedido.setFrete(BigDecimal.ZERO);
-        pedido.setTotal(subtotal);
+        pedido.setFrete(request.valorFrete());
+        pedido.setTotal(subtotal.add(request.valorFrete()));
 
         pedidoRepository.save(pedido);
 
@@ -224,13 +238,31 @@ public class PedidoService {
                 .map(this::toItemResponse)
                 .toList();
 
+        EnderecoResponseDTO enderecoDTO = null;
+
+        if (pedido.getEndereco() != null) {
+            Endereco endereco = pedido.getEndereco();
+            enderecoDTO = new EnderecoResponseDTO(
+                endereco.getId(),
+                endereco.getCep(),
+                endereco.getLogradouro(),
+                String.valueOf(endereco.getNumero()),
+                endereco.getComplemento(),
+                endereco.getBairro(),
+                endereco.getCidade(),
+                endereco.getUf(),
+                endereco.getApelido()
+            );
+        }
+        
+
         return new PedidoResponseDTO(
                 pedido.getId(),
                 pedido.getSubtotal(),
                 pedido.getFrete(),
                 pedido.getTotal(),
                 pedido.getStatus().name(),
-                pedido.getEnderecoEntrega(),
+                enderecoDTO,
                 itens
         );
     }
