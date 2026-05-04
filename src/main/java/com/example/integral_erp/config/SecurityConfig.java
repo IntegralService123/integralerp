@@ -92,6 +92,9 @@ public class SecurityConfig {
 
                 .requestMatchers(HttpMethod.GET, "/api/pedidos/**")
                     .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+
+                // MERCADO PAGO
+                .requestMatchers(HttpMethod.POST, "/api/pagamentos/webhook").permitAll()
                 
                 .anyRequest().authenticated()
             )
