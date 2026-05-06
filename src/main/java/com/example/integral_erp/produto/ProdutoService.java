@@ -60,8 +60,12 @@ public class ProdutoService {
         produto.setCodigoBarras(request.codigoBarras());
         produto.setEstoqueMinimo(request.estoqueMinimo());
         produto.setPreco(request.preco());
+        produto.setPrecoPix(request.precoPix());
         produto.setCategoria(categoria);
         produto.setAtivo(true);
+        produto.setFabricante(request.fabricante());
+        produto.setMaterial(request.material());
+        produto.setUnidade(request.unidade());
         produto.setPeso(request.peso());
         produto.setLargura(request.largura());
         produto.setAltura(request.altura());
@@ -205,7 +209,11 @@ public class ProdutoService {
         produto.setCodigoBarras(request.codigoBarras());
         produto.setEstoqueMinimo(request.estoqueMinimo());
         produto.setPreco(request.preco());
+        produto.setPrecoPix(request.precoPix());
         produto.setCategoria(categoria);
+        produto.setFabricante(request.fabricante());
+        produto.setMaterial(request.material());
+        produto.setUnidade(request.unidade());
         produto.setPeso(request.peso());
         produto.setLargura(request.largura());
         produto.setAltura(request.altura());
@@ -270,7 +278,11 @@ public class ProdutoService {
             produto.getCategoria().getId(),
             produto.getCategoria().getNome(),
             produto.getPreco(),
+            produto.getPrecoPix(),
             produto.getAtivo(),
+            produto.getFabricante(),
+            produto.getMaterial(),
+            produto.getUnidade(),
             produto.getPeso(),
             produto.getLargura(),
             produto.getAltura(),

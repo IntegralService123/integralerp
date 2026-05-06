@@ -33,3 +33,8 @@ spring:
 
   melhorenvio:
     token: ${MELHOR_ENVIO_TOKEN}
+
+  supabase:
+    supabase-url: ${SUPABASE_URL}
+    anon-key: ${ANON_KEY}
+    bucket: produtos

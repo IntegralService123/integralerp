@@ -38,6 +38,9 @@ public class Produto extends Auditavel{
 
     private BigDecimal preco;
 
+    @Column(name = "preco_pix")
+    private BigDecimal precoPix;
+
     private Integer estoqueMinimo;
 
     private Boolean ativo = true;
@@ -45,6 +48,12 @@ public class Produto extends Auditavel{
     @ManyToOne
     @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria;
+
+    private String fabricante;
+
+    private String material;
+
+    private String unidade;
 
     @Column(precision = 10, scale = 3)
     private BigDecimal peso; // Em quilogramas (ex: 0.500 para 500g)
