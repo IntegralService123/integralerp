@@ -49,7 +49,7 @@ public class SecurityConfig {
 
                 // PRODUTOS
                 .requestMatchers(HttpMethod.GET, "/api/produtos/**")
-                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+                    .permitAll()
 
                 .requestMatchers(HttpMethod.POST, "/api/produtos/**")
                     .hasRole("BASE_ADMIN")
@@ -62,7 +62,7 @@ public class SecurityConfig {
 
                 // CATEGORIAS
                 .requestMatchers(HttpMethod.GET, "/api/categorias/**")
-                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+                    .permitAll()
 
                 .requestMatchers(HttpMethod.POST, "/api/categorias/**")
                     .hasRole("BASE_ADMIN")
@@ -82,7 +82,7 @@ public class SecurityConfig {
                     .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
 
                 .requestMatchers(HttpMethod.GET, "/api/carrinho/**")
-                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
+                    .permitAll()
 
                 .requestMatchers(HttpMethod.PATCH, "/api/carrinho/**")
                     .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR", "CLIENTE")
