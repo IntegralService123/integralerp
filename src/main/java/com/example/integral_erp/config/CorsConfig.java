@@ -1,29 +1,35 @@
-package com.example.integral_erp.config;
+// package com.example.integral_erp.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
+// import org.springframework.beans.factory.annotation.Value;
+// import org.springframework.context.annotation.Bean;
+// import org.springframework.context.annotation.Configuration;
+// import org.springframework.web.cors.CorsConfiguration;
+// import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+// import org.springframework.web.filter.CorsFilter;
 
-import java.util.List;
+// import java.util.List;
 
-@Configuration
-public class CorsConfig {
+// @Configuration
+// public class CorsConfig {
 
-    @Bean
-    public CorsFilter corsFilter() {
+//     @Value("${spring.cors.frontend-url}")
+//     private String frontendURL;
 
-        CorsConfiguration config = new CorsConfiguration();
+//     @Bean
+//     public CorsFilter corsFilter() {
 
-        config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+//         CorsConfiguration config = new CorsConfiguration();
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        
 
-        return new CorsFilter(source);
-    }
-}
+//         config.setAllowCredentials(true);
+//         config.setAllowedOrigins(List.of(/*frontendURL*/"https://integralerpweb.vercel.app"));
+//         config.setAllowedHeaders(List.of("*"));
+//         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+
+//         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+//         source.registerCorsConfiguration("/**", config);
+
+//         return new CorsFilter(source);
+//     }
+// }
