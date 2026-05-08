@@ -21,9 +21,6 @@ public class JwtService {
     @Value("${spring.jwt.secret}")
     private String secret;
 
-    @Value("${spring.jwt.expiration}")
-    private Long expiration;
-
     private Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64URL.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -31,13 +28,16 @@ public class JwtService {
 
     public String gerarToken(Usuario usuario) {
 
+        // 30 dias em milisegundos
+        long trintaDiasMs = 1000L * 60 * 60 * 24 * 30;
+
         return Jwts.builder()
             .setSubject(usuario.getEmail())
             .claim("role", usuario.getRole().name())
             .claim("centroId", 
                 usuario.getCentro() != null ? usuario.getCentro().getId() : null)
             .setIssuedAt(new Date())
-            .setExpiration(new Date(System.currentTimeMillis() + expiration))
+            .setExpiration(new Date(System.currentTimeMillis() + trintaDiasMs))
             .signWith(getSigningKey(), SignatureAlgorithm.HS256)
             .compact();
     }

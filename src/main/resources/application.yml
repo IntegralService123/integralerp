@@ -22,7 +22,9 @@ spring:
 
   jwt:
     secret: ${JWT_SECRET}
-    expiration: 7200000 # 2 horas em ms
+
+  server:
+    port: ${PORT:8080}
 
   cors:
     frontend-url: ${FRONTEND_URL}
