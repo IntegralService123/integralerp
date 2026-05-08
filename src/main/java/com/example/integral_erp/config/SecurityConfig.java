@@ -69,7 +69,8 @@ public class SecurityConfig {
 
                 // ESTOQUE
                 .requestMatchers("/api/estoque/**")
-                    .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR")
+                    // .hasAnyRole("BASE_ADMIN", "DISTRIBUIDOR")
+                    .permitAll()
 
                 // IMAGEM 
                 .requestMatchers(HttpMethod.POST, "/api/imagens/**")
