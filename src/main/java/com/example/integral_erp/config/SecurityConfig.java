@@ -44,6 +44,7 @@ public class SecurityConfig {
 
                 // AUTH
                 .requestMatchers("/auth/login").permitAll()
+                .requestMatchers("/auth/register").permitAll()
                 .requestMatchers("/auth/me").authenticated()
 
                 // PRODUTOS
@@ -125,7 +126,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("https://integralerpweb.vercel.app"));
+        config.setAllowedOrigins(List.of("https://integralerpweb.vercel.app", "http://localhost:3000"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         
