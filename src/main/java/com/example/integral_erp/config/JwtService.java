@@ -1,5 +1,6 @@
 package com.example.integral_erp.config;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
@@ -12,7 +13,6 @@ import com.example.integral_erp.usuario.Usuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
 @Service
@@ -22,8 +22,14 @@ public class JwtService {
     private String secret;
 
     private Key getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64URL.decode(secret);
-        return Keys.hmacShaKeyFor(keyBytes);
+
+        try {
+            byte[] keyBytes = secret.getBytes();
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (Exception e) {
+            return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        }
+        
     }
 
     public String gerarToken(Usuario usuario) {
