@@ -38,21 +38,29 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequestDTO request) {
 
-        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                request.email(),
-                request.senha()
-            )
-        );
+        try {
+            Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    request.email(),
+                    request.senha()
+                )
+            );
 
-        UsuarioDetails usuarioDetails = (UsuarioDetails) authentication.getPrincipal();
+            UsuarioDetails usuarioDetails = (UsuarioDetails) authentication.getPrincipal();
 
-        Usuario usuario = usuarioDetails.getUsuario();
+            Usuario usuario = usuarioDetails.getUsuario();
 
-        String token = jwtService.gerarToken(usuario);
+            String token = jwtService.gerarToken(usuario);
 
-        return ResponseEntity.ok(new LoginResponseDTO(token, usuario.getId(), usuario.getNome(), usuario.getEmail(), usuario.getRole().name()));
+            return ResponseEntity.ok(new LoginResponseDTO(
+                token, usuario.getId(), usuario.getNome(), usuario.getEmail(), usuario.getRole().name()));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            return ResponseEntity.status(500).body("Erro no Backend: " + e.getMessage());
+        }
     }
 
     @GetMapping("/me")
