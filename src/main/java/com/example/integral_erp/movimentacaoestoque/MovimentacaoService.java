@@ -93,7 +93,7 @@ public class MovimentacaoService {
     @Transactional
     public void saidaVenda(Long produtoId, Integer quantidade) {
 
-        CentroDistribuicao centro = centroDistribuicaoRepository
+        CentroDistribuicao centroBase = centroDistribuicaoRepository
             .findByTipo(TipoCentro.BASE)
             .stream()
             .findFirst()
@@ -102,11 +102,8 @@ public class MovimentacaoService {
         Produto produto = produtoRepository.findById(produtoId)
             .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
 
-        centro = centroDistribuicaoRepository.findById(centro.getId())
-            .orElseThrow(() -> new RuntimeException("Centro não encontrado"));
-
         Estoque estoque = estoqueRepository
-            .findByProdutoIdAndCentroId(produtoId, centro.getId())
+            .findByProdutoIdAndCentroId(produtoId, centroBase.getId())
             .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
 
         if (estoque.getQuantidade() < quantidade) {
@@ -119,7 +116,7 @@ public class MovimentacaoService {
 
         MovimentacaoEstoque movimentacao = new MovimentacaoEstoque();
         movimentacao.setProduto(produto);
-        movimentacao.setCentro(centro);
+        movimentacao.setCentro(centroBase);
         movimentacao.setQuantidade(quantidade);
         movimentacao.setTipo(TipoMovimentacao.SAIDA_VENDA);
 
@@ -177,6 +174,26 @@ public class MovimentacaoService {
 
         if (estoque.getQuantidade() < quantidade) {
             throw new RuntimeException("Estoque insuficiente");
+        }
+    }
+
+// ======================================================
+
+    @Transactional(readOnly = true)
+    public void validarEstoqueBase(Long produtoId, Integer quantidade) {
+        // Busca o ID do centro BASE
+        CentroDistribuicao centroBase = centroDistribuicaoRepository
+                .findByTipo(TipoCentro.BASE)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Centro BASE não configurado"));
+
+        Estoque estoque = estoqueRepository
+                .findByProdutoIdAndCentroId(produtoId, centroBase.getId())
+                .orElseThrow(() -> new RuntimeException("Produto sem registro de estoque no Centro BASE"));
+
+        if (estoque.getQuantidade() < quantidade) {
+            throw new RuntimeException("Estoque insuficiente para o produto: " + estoque.getProduto().getNome());
         }
     }
 

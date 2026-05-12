@@ -267,6 +267,20 @@ public class ProdutoService {
 // ======================================================
 
     private ProdutoResponseAdminDTO toResponse(Produto produto) {
+        // 1. Busca o ID do centro BASE
+        Long centroBaseId = centroRepository.findByTipo(TipoCentro.BASE)
+            .stream().findFirst()
+            .map(CentroDistribuicao::getId)
+            .orElse(null);
+
+        // 2. Busca a quantidade real na tabela de estoque
+        Integer quantidadeReal = 0;
+        if (centroBaseId != null) {
+            quantidadeReal = estoqueRepository
+                .findByProdutoIdAndCentroId(produto.getId(), centroBaseId)
+                .map(Estoque::getQuantidade)
+                .orElse(0);
+        }
 
         return new ProdutoResponseAdminDTO(
             produto.getId(),
@@ -287,7 +301,8 @@ public class ProdutoService {
             produto.getLargura(),
             produto.getAltura(),
             produto.getComprimento(),
-            produto.getDiametro()
+            produto.getDiametro(),
+            quantidadeReal
         );
     }
 

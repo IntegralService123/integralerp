@@ -21,5 +21,6 @@ public record ProdutoResponseAdminDTO(
         BigDecimal largura,
         BigDecimal altura,
         BigDecimal comprimento,
-        BigDecimal diametro
+        BigDecimal diametro,
+        Integer estoqueDisponivel
 ) {}

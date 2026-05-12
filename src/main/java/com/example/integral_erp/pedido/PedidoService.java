@@ -80,6 +80,11 @@ public class PedidoService {
                 .map(item -> toPedidoItem(item, pedido))
                 .toList();
 
+        for (PedidoItem item : itens) {
+            // Valida se o Centro Base tem o que o cliente quer comprar
+            movimentacaoService.validarEstoqueBase(item.getProdutoId(), item.getQuantidade());
+        }
+
         itens.forEach(pedido::adicionarItem);
 
         BigDecimal subtotal = itens.stream()
