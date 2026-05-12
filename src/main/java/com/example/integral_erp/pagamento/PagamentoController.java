@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.integral_erp.pagamento.dto.BoletoResponseDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoRequestDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoResponseDTO;
+import com.example.integral_erp.pagamento.dto.PagamentoPixRequest;
 import com.example.integral_erp.pagamento.dto.PagamentoStatusDTO;
 import com.example.integral_erp.pagamento.dto.PixResponseDTO;
 import com.example.integral_erp.pedido.Pedido;
@@ -36,12 +37,12 @@ public class PagamentoController {
     }
 
     @PostMapping("/{pedidoId}/pix")
-    public PixResponseDTO gerarPix(@PathVariable Long pedidoId) {
+    public PixResponseDTO gerarPix(@PathVariable Long pedidoId, @RequestBody PagamentoPixRequest request) {
 
         Pedido pedido = pedidoRepository.findById(pedidoId)
             .orElseThrow();
 
-        return pagamentoService.criarPagamentoPix(pedido);
+        return pagamentoService.criarPagamentoPix(pedido, request.emailPagador(), request.cpfPagador());
     }
 
     @PostMapping("/{pedidoId}/cartao")

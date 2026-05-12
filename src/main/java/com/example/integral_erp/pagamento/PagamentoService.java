@@ -69,9 +69,20 @@ public class PagamentoService {
         return pagamentoRepository.save(pagamento);
     }
 
-    public PixResponseDTO criarPagamentoPix(Pedido pedido) {
+    public PixResponseDTO criarPagamentoPix(Pedido pedido, String emailPagador, String cpfPagador) {
 
         try {
+
+            System.out.println("======= INICIANDO PAGAMENTO PIX =======");
+            System.out.println("ID Pedido: " + pedido.getId());
+
+            if (pedido.getUsuario() == null) {
+                System.err.println("ERRO: Usuário do pedido está NULL!");
+            } else {
+                System.out.println("Email do Usuário: " + pedido.getUsuario().getEmail());
+            }
+            
+            System.out.println("Valor Total: " + pedido.getTotal());
 
             Optional<Pagamento> pagamentoOpt = pagamentoRepository.findByPedidoId(pedido.getId());
 
@@ -99,6 +110,8 @@ public class PagamentoService {
 
             String url = "https://api.mercadopago.com/v1/payments";
             String accessToken = properties.getAccessToken();
+            System.out.println("DEBUG TOKEN: " + accessToken);
+
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -113,14 +126,41 @@ public class PagamentoService {
             body.put("transaction_amount", pedido.getTotal());
             body.put("description", "Pedido #" + pedido.getId());
             body.put("payment_method_id", "pix");
-            body.put("date_of_expiration", dateExpiration);
-            
+            //body.put("date_of_expiration", dateExpiration);
+
+            // Map<String, Object> payer = new HashMap<>();
+            // // Force e-mail minúsculo e sem espaços
+            // payer.put("email", "test_user_123@testuser.com"); 
+            // payer.put("first_name", "Joao"); // Evite acentos por segurança
+            // payer.put("last_name", "Silva");
+
+            // Map<String, Object> identification = new HashMap<>();
+            // identification.put("type", "CPF");
+            // identification.put("number", "19119119100"); // CPF padrão de teste
+            // payer.put("identification", identification);
+
             Map<String, Object> payer = new HashMap<>();
-            payer.put("email", pedido.getUsuario().getEmail());
+            payer.put("email", (emailPagador != null && !emailPagador.isBlank()) 
+                    ? emailPagador : pedido.getUsuario().getEmail());
+            payer.put("first_name", pedido.getClienteNome() != null ? pedido.getClienteNome() : "Cliente");
+            payer.put("last_name", "Gr Tools");
+
+            Map<String, Object> identification = new HashMap<>();
+
+            // Lógica para detectar se é CPF ou CNPJ (básico: por tamanho)
+            String cleanCpf = cpfPagador.replaceAll("\\D", "");
+            identification.put("type", cleanCpf.length() > 11 ? "CNPJ" : "CPF");
+            identification.put("number", cleanCpf);
+            
+            payer.put("identification", identification);
+
             body.put("payer", payer);
+
+            System.out.println("JSON Body enviado ao MP: " + body.toString());
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            System.out.println("Resposta MP Status: " + response.getStatusCode());
             Map<String, Object> responseBody = response.getBody();
 
             // EXTRAÇÃO DOS DADOS

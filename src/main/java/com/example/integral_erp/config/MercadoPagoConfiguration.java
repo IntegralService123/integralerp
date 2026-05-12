@@ -14,8 +14,6 @@ public class MercadoPagoConfiguration {
     @PostConstruct
     public void init() {
 
-        System.out.println("TOKEN: " + accessToken);
-
         if (accessToken != null && !accessToken.isBlank()) {
             com.mercadopago.MercadoPagoConfig.setAccessToken(accessToken);
         } else {

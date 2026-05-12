@@ -44,6 +44,10 @@ public class PedidoService {
     public PedidoResponseDTO criar(PedidoRequestDTO request) {
 
         Usuario usuario = SecurityUtils.getUsuarioLogado();
+        
+        if (usuario == null) {
+            throw new RuntimeException("Sessão expirada. Por favor, faça login novamente.");
+        }
 
         Carrinho carrinho = carrinhoRepository
                 .findByUsuarioId(usuario.getId())
