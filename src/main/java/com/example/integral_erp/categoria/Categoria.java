@@ -25,4 +25,6 @@ public class Categoria extends Auditavel{
     private String nome;
 
     private String descricao;
+
+    private String imagemUrl;
 }

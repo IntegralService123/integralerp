@@ -28,6 +28,7 @@ public class CategoriaService {
         var categoria = new Categoria();
         categoria.setNome(request.nome());
         categoria.setDescricao(request.descricao());
+        categoria.setImagemUrl(request.imagemUrl());
 
         categoria = categoriaRepository.save(categoria);
 
@@ -55,7 +56,8 @@ public class CategoriaService {
         return new CategoriaResponseDTO(
                 categoria.getId(),
                 categoria.getNome(),
-                categoria.getDescricao()
+                categoria.getDescricao(),
+                categoria.getImagemUrl()
         );
     }
 }
