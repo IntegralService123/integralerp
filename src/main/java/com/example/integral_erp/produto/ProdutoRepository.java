@@ -19,6 +19,8 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
     List<Produto> findByAtivoTrue();
 
+    boolean existsByCategoriaId(Long categoriaId);
+
     @Query("""
         SELECT p FROM Produto p
         WHERE p.ativo = true
