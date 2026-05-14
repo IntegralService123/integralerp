@@ -15,6 +15,7 @@ import com.example.integral_erp.config.SecurityUtils;
 import com.example.integral_erp.produto.Produto;
 import com.example.integral_erp.produto.ProdutoRepository;
 import com.example.integral_erp.usuario.Usuario;
+import com.example.integral_erp.usuario.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,10 +25,18 @@ public class CarrinhoService {
 
     private final CarrinhoRepository carrinhoRepository;
     private final ProdutoRepository produtoRepository;
+	private final UsuarioRepository usuarioRepository;
 
+	@Transactional
     public void adicionarProduto(Long produtoId, Integer quantidade) {
 
+		System.out.println("Tentando adicionar produto ID: " + produtoId);
+
         Usuario usuario = SecurityUtils.getUsuarioLogado();
+
+        if (usuario == null) {
+                throw new RuntimeException("Usuário não autenticado");
+        }
 
         Carrinho carrinho = carrinhoRepository
                 .findByUsuarioId(usuario.getId())
@@ -35,9 +44,10 @@ public class CarrinhoService {
 
         Produto produto = produtoRepository
                 .findById(produtoId)
-                .orElseThrow();
+                .orElseThrow(() -> new RuntimeException("Produto não encontrado ID: " + produtoId));
 
-        Optional<CarrinhoItem> itemExistente = carrinho.getItens()
+        Optional<CarrinhoItem> itemExistente = Optional.ofNullable(carrinho.getItens())
+				.orElseGet(ArrayList::new)
                 .stream()
                 .filter(i -> i.getProduto().getId().equals(produtoId))
                 .findFirst();
@@ -52,6 +62,7 @@ public class CarrinhoService {
             CarrinhoItem item = CarrinhoItem.builder()
                     .produto(produto)
                     .quantidade(quantidade)
+					.carrinho(carrinho)
                     .build();
 
             carrinho.adicionarItem(item);
@@ -67,7 +78,7 @@ public class CarrinhoService {
 
         Carrinho carrinho = carrinhoRepository
                 .findByUsuarioId(usuario.getId())
-                .orElseThrow();
+                .orElseGet(() -> criarCarrinho(usuario));
 
         return toResponse(carrinho);
     }
@@ -97,22 +108,41 @@ public class CarrinhoService {
 
 	@Transactional
 	public void atualizarQuantidade(Long produtoId, int quantidade) {
-
 		Long usuarioId = SecurityUtils.getUsuarioId();
 
+		// 1. Garante que o carrinho exista (Usa orElseGet em vez de orElseThrow)
 		Carrinho carrinho = carrinhoRepository.findByUsuarioId(usuarioId)
-				.orElseThrow(() -> new RuntimeException("Carrinho não encontrado"));
+				.orElseGet(() -> {
+					Usuario usuario = usuarioRepository.findById(usuarioId)
+							.orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+					return criarCarrinho(usuario);
+				});
 
-		CarrinhoItem item = carrinho.getItens()
+		// 2. Busca o item, mas sem estourar erro imediatamente se não achar
+		Optional<CarrinhoItem> itemOptional = carrinho.getItens()
 				.stream()
 				.filter(i -> i.getProduto().getId().equals(produtoId))
-				.findFirst()
-				.orElseThrow();
+				.findFirst();
 
-		if (quantidade <= 0) {
-			carrinho.getItens().remove(item);
-		} else {
-			item.setQuantidade(quantidade);
+		if (itemOptional.isPresent()) {
+			CarrinhoItem item = itemOptional.get();
+			if (quantidade <= 0) {
+				carrinho.getItens().remove(item);
+			} else {
+				item.setQuantidade(quantidade);
+			}
+		} else if (quantidade > 0) {
+			// 3. Se o item não existia no carrinho logado, ele deve ser adicionado agora
+			// Isso resolve o problema de sincronização do localStorage
+			Produto produto = produtoRepository.findById(produtoId)
+					.orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+			
+			CarrinhoItem novoItem = CarrinhoItem.builder()
+					.produto(produto)
+					.quantidade(quantidade)
+					.carrinho(carrinho)
+					.build();
+			carrinho.getItens().add(novoItem);
 		}
 
 		carrinhoRepository.save(carrinho);
