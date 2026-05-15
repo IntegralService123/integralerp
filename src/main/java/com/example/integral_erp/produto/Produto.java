@@ -1,8 +1,6 @@
 package com.example.integral_erp.produto;
 
 import java.math.BigDecimal;
-import java.text.Normalizer;
-import java.util.regex.Pattern;
 
 import com.example.integral_erp.categoria.Categoria;
 import com.example.integral_erp.common.Auditavel;
@@ -36,6 +34,7 @@ public class Produto extends Auditavel{
     @Column(name = "nome_busca")
     private String nomeBusca;
 
+    @Column(columnDefinition = "TEXT")
     private String descricao;
 
     @Column(name = "imagem_url")
