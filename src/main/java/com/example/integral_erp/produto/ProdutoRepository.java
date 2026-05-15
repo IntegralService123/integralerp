@@ -25,7 +25,7 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
         SELECT p FROM Produto p
         WHERE p.ativo = true
         AND (:categoria IS NULL OR p.categoria.id = :categoria)
-        AND (:q IS NULL OR p.nome ILIKE :q)
+        AND (:q IS NULL OR p.nomeBusca LIKE :q)
     """)
     List<Produto> buscarCatalogo(
         @Param("categoria") Long categoria,

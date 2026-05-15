@@ -1,9 +1,12 @@
 package com.example.integral_erp.produto;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
+import java.util.regex.Pattern;
 
 import com.example.integral_erp.categoria.Categoria;
 import com.example.integral_erp.common.Auditavel;
+import com.example.integral_erp.common.StringUtils;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,6 +15,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,6 +32,9 @@ public class Produto extends Auditavel{
     private Long id;
 
     private String nome;
+
+    @Column(name = "nome_busca")
+    private String nomeBusca;
 
     private String descricao;
 
@@ -65,5 +73,13 @@ public class Produto extends Auditavel{
     private BigDecimal comprimento; // Em cm
 
     private BigDecimal diametro; // para produtos cilíndricos (tubos)
+
+    @PrePersist
+    @PreUpdate
+    public void prepararNomeBusca() {
+        if (this.nome != null) {
+            this.nomeBusca = StringUtils.normalizarParaBusca(this.nome);
+        }
+    }
 
 }

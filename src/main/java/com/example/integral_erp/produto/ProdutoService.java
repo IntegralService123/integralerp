@@ -1,5 +1,6 @@
 package com.example.integral_erp.produto;
 
+import java.text.Normalizer;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -8,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.integral_erp.categoria.CategoriaRepository;
 import com.example.integral_erp.centrodistribuicao.CentroDistribuicao;
 import com.example.integral_erp.centrodistribuicao.CentroDistribuicaoRepository;
+import com.example.integral_erp.common.StringUtils;
 import com.example.integral_erp.config.SecurityUtils;
 import com.example.integral_erp.enums.Role;
 import com.example.integral_erp.enums.TipoCentro;
@@ -108,15 +110,14 @@ public class ProdutoService {
 
     public List<ProdutoResponseAdminDTO> listarCatalogo(Long categoria, String q) {
 
-    String busca = (q == null || q.isBlank()) 
-        ? null 
-        : "%" + q.toLowerCase() + "%";
+        String termoBusca = StringUtils.normalizarParaBusca(q);
+        String buscaParam = (termoBusca == null) ? null : "%" + termoBusca + "%"; 
 
-    return produtoRepository.buscarCatalogo(categoria, busca)
-        .stream()
-        .map(this::toResponse)
-        .toList();
-}
+        return produtoRepository.buscarCatalogo(categoria, buscaParam)
+            .stream()
+            .map(this::toResponse)
+            .toList();
+    }
 
 // ======================================================
 // LISTAR ESTOQUE
@@ -263,7 +264,7 @@ public class ProdutoService {
     }
 
 // ======================================================
-// MAPPER
+// MAPPER E UTILITÁRIOS
 // ======================================================
 
     private ProdutoResponseAdminDTO toResponse(Produto produto) {
