@@ -1,6 +1,7 @@
 package com.example.integral_erp.produto;
 
 import java.text.Normalizer;
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -108,12 +109,20 @@ public class ProdutoService {
             .toList();
     }
 
-    public List<ProdutoResponseAdminDTO> listarCatalogo(Long categoria, String q) {
+    public List<ProdutoResponseAdminDTO> listarCatalogo(String categorias, String q) {
 
-        String termoBusca = StringUtils.normalizarParaBusca(q);
-        String buscaParam = (termoBusca == null) ? null : "%" + termoBusca + "%"; 
+        List<Long> categoriasIds = null;
 
-        return produtoRepository.buscarCatalogo(categoria, buscaParam)
+        if (categorias != null && !categorias.isBlank()) {
+        categoriasIds = Arrays.stream(categorias.split(","))
+                            .map(Long::valueOf)
+                            .toList();
+        }
+
+        String busca = StringUtils.normalizarParaBusca(q);
+        String buscaParam = (busca == null) ? null : "%" + busca + "%"; 
+
+        return produtoRepository.buscarCatalogo(categoriasIds, buscaParam)
             .stream()
             .map(this::toResponse)
             .toList();

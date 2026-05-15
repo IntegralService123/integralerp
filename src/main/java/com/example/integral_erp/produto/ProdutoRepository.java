@@ -24,11 +24,11 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     @Query("""
         SELECT p FROM Produto p
         WHERE p.ativo = true
-        AND (:categoria IS NULL OR p.categoria.id = :categoria)
+        AND (COALESCE(:categorias, NULL) IS NULL OR p.categoria.id IN :categorias)
         AND (:q IS NULL OR p.nomeBusca LIKE :q)
     """)
     List<Produto> buscarCatalogo(
-        @Param("categoria") Long categoria,
+        @Param("categorias") List<Long> categorias,
         @Param("q") String q
     );
 }

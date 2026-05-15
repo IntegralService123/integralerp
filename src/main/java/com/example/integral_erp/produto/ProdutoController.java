@@ -54,7 +54,7 @@ public class ProdutoController {
 
     @GetMapping("/catalogo")
     public List<ProdutoResponseAdminDTO> listarCatalogo(
-        @RequestParam(required = false) Long categoria,
+        @RequestParam(required = false) String categoria,
         @RequestParam(required = false) String q
     ) {
         return produtoService.listarCatalogo(categoria, q);
