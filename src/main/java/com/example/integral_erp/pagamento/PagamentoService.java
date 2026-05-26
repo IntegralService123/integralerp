@@ -395,7 +395,9 @@ public class PagamentoService {
 
             // Define o vencimento para 3 dias a partir de agora
             OffsetDateTime vencimento = OffsetDateTime.now(ZoneId.of("America/Sao_Paulo")).plusDays(3);
-            String dateExpiration = vencimento.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+            String dateExpiration = vencimento.format(formatter);
+            
             body.put("date_of_expiration", dateExpiration);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
