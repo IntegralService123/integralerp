@@ -42,7 +42,7 @@ public class PagamentoController {
         Pedido pedido = pedidoRepository.findById(pedidoId)
             .orElseThrow();
 
-        return pagamentoService.criarPagamentoPix(pedido, request.emailPagador(), request.cpfPagador());
+        return pagamentoService.criarPagamentoPix(pedido, request.nomePagador(), request.emailPagador(), request.cpfPagador());
     }
 
     @PostMapping("/{pedidoId}/cartao")
