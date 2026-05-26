@@ -23,6 +23,7 @@ import com.example.integral_erp.enums.GatewayPagamento;
 import com.example.integral_erp.enums.StatusPagamento;
 import com.example.integral_erp.enums.StatusPedido;
 import com.example.integral_erp.movimentacaoestoque.MovimentacaoService;
+import com.example.integral_erp.pagamento.dto.BoletoRequestDTO;
 import com.example.integral_erp.pagamento.dto.BoletoResponseDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoRequestDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoResponseDTO;
@@ -326,7 +327,7 @@ public class PagamentoService {
     }
 
     @Transactional
-    public BoletoResponseDTO criarPagamentoBoleto(Pedido pedido) {
+    public BoletoResponseDTO criarPagamentoBoleto(Pedido pedido, BoletoRequestDTO request) {
         try {
             Optional<Pagamento> pagamentoOpt = pagamentoRepository.findByPedidoId(pedido.getId());
 
@@ -360,35 +361,44 @@ public class PagamentoService {
             body.put("payment_method_id", "bolbradesco");
 
             Map<String, Object> payer = new HashMap<>();
-            payer.put("email", pedido.getUsuario().getEmail());
-            payer.put("first_name", "Lucas");
-            payer.put("last_name", "Ferraz");
+            payer.put("email", (request.email() != null && !request.email().isBlank()) 
+                ? request.email() : pedido.getUsuario().getEmail());
+            
+            String nome = "Cliente";
+            String sobrenome = "Gr Tools";
+
+            if (request.nomePagador() != null && !request.nomePagador().trim().isEmpty()) {
+                String nomeLimpo = request.nomePagador().trim();
+                int primeiroEspaco = nomeLimpo.indexOf(" ");
+                
+                if (primeiroEspaco != -1) {
+                    nome = nomeLimpo.substring(0, primeiroEspaco);
+                    sobrenome = nomeLimpo.substring(primeiroEspaco).trim();
+                } else {
+                    nome = nomeLimpo;
+                }
+            }
+
+            payer.put("first_name", nome);
+            payer.put("last_name", sobrenome);
 
             Map<String, Object> identification = new HashMap<>();
-            identification.put("type", "CPF");
-            identification.put("number", "70815992068");
+            String documentoLimpo = request.cpfCnpj().replaceAll("\\D", "");
+            identification.put("type", documentoLimpo.length() > 11 ? "CNPJ" : "CPF");
+            identification.put("number", documentoLimpo);
             payer.put("identification", identification);
 
-            Map<String, Object> address = new HashMap<>();
-            address.put("zip_code", "04571020");
-            address.put("street_name", "Avenida das Nações Unidas");
-            address.put("street_number", "3003");
-            address.put("neighborhood", "Bonfim");
-            address.put("city", "Osasco");
-            address.put("federal_unit", "SP");
-
+            Map<String, Object> address = buscarEnderecoPorCep(request.zipCode());
             payer.put("address", address);
 
             body.put("payer", payer);
 
             // Define o vencimento para 3 dias a partir de agora
             OffsetDateTime vencimento = OffsetDateTime.now(ZoneId.of("America/Sao_Paulo")).plusDays(3);
-
             String dateExpiration = vencimento.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-            //body.put("date_of_expiration", dateExpiration);
+            body.put("date_of_expiration", dateExpiration);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-
             ResponseEntity<Map> response = new RestTemplate().postForEntity(url, entity, Map.class);
             Map<String, Object> responseBody = response.getBody();
 
@@ -432,6 +442,36 @@ public class PagamentoService {
             e.printStackTrace();
             throw new RuntimeException("Erro ao processar boleto: " + e.getMessage());
         }
+    }
+
+    private Map<String, Object> buscarEnderecoPorCep(String cep) {
+        Map<String, Object> address = new HashMap<>();
+        try {
+            String url = "https://viacep.com.br/ws/" + cep.replaceAll("\\D", "") + "/json/";
+            ResponseEntity<Map> response = new RestTemplate().getForEntity(url, Map.class);
+            Map<String, String> data = response.getBody();
+
+            if (data != null && !data.containsKey("erro")) {
+                address.put("zip_code", cep.replaceAll("\\D", ""));
+                address.put("street_name", data.get("logradouro"));
+                address.put("street_number", "000"); // Mercado Pago exige número. Pode mandar '000' ou coletar do front se preferir.
+                address.put("neighborhood", data.get("bairro"));
+                address.put("city", data.get("localidade"));
+                address.put("federal_unit", data.get("uf"));
+                return address;
+            }
+        } catch (Exception e) {
+            System.err.println("Falha ao buscar CEP dinâmico, usando fallback padrão: " + e.getMessage());
+        }
+
+        // Fallback de contingência caso a API externa falhe
+        address.put("zip_code", "04571020");
+        address.put("street_name", "Avenida das Nações Unidas");
+        address.put("street_number", "3003");
+        address.put("neighborhood", "Bonfim");
+        address.put("city", "Osasco");
+        address.put("federal_unit", "SP");
+        return address;
     }
 
     public PagamentoStatusDTO buscarStatus(Long pedidoId) {
