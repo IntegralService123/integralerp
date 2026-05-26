@@ -69,7 +69,7 @@ public class PagamentoService {
         return pagamentoRepository.save(pagamento);
     }
 
-    public PixResponseDTO criarPagamentoPix(Pedido pedido, String emailPagador, String cpfPagador) {
+    public PixResponseDTO criarPagamentoPix(Pedido pedido, String nomeCompletoPagador, String emailPagador, String cpfPagador) {
 
         try {
 
@@ -142,8 +142,34 @@ public class PagamentoService {
             Map<String, Object> payer = new HashMap<>();
             payer.put("email", (emailPagador != null && !emailPagador.isBlank()) 
                     ? emailPagador : pedido.getUsuario().getEmail());
-            payer.put("first_name", pedido.getClienteNome() != null ? pedido.getClienteNome() : "Cliente");
-            payer.put("last_name", "Gr Tools");
+
+            String nome = "Cliente";
+            String sobrenome = "Gr Tools";
+
+            if (nomeCompletoPagador != null && !nomeCompletoPagador.trim().isEmpty()) {
+                String nomeLimpo = nomeCompletoPagador.trim();
+                int primeiroEspaco = nomeLimpo.indexOf(" ");
+                
+                if (primeiroEspaco != -1) {
+                    nome = nomeLimpo.substring(0, primeiroEspaco);
+                    sobrenome = nomeLimpo.substring(primeiroEspaco).trim();
+                } else {
+                    nome = nomeLimpo; // Se digitou só uma palavra, mantém o sobrenome padrão anterior
+                }
+            } else if (pedido.getClienteNome() != null) {
+                // Fallback usando o nome que está atrelado ao pedido
+                String nomeCliente = pedido.getClienteNome().trim();
+                int primeiroEspaco = nomeCliente.indexOf(" ");
+                if (primeiroEspaco != -1) {
+                    nome = nomeCliente.substring(0, primeiroEspaco);
+                    sobrenome = nomeCliente.substring(primeiroEspaco).trim();
+                } else {
+                    nome = nomeCliente;
+                }
+            }
+
+            payer.put("first_name", nome);
+            payer.put("last_name", sobrenome);
 
             Map<String, Object> identification = new HashMap<>();
 
