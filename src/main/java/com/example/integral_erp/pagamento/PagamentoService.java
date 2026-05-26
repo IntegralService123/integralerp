@@ -206,90 +206,6 @@ public class PagamentoService {
         }
     }
 
-    // @Transactional
-    // public CartaoPagamentoResponseDTO criarPagamentoCartao (Long pedidoId, CartaoPagamentoRequestDTO dto) {
-
-    //     System.out.println("DEBUG DTO RECEBIDO: " + dto);
-
-    //     String accessToken = properties.getAccessToken();
-    //     MercadoPagoConfig.setAccessToken(accessToken);
-
-    //     try {
-    //         PaymentClient client = new PaymentClient();
-
-    //         Pedido pedido = pedidoRepository.findById(pedidoId)
-    //             .orElseThrow(() -> new RuntimeException("Pedido não encontrado: " + pedidoId));
-
-    //         System.out.println("Valor do pedido:" + pedido.getTotal());
-
-    //         if (StatusPedido.PAGO.equals(pedido.getStatus())) {
-    //             throw new RuntimeException("Este pedido já foi processado e pago");
-    //         }
-
-    //         Integer parcelaReal = "CARTAO_DEBITO".equals(dto.tipo()) ? 1 : dto.installments();
-
-    //         PaymentCreateRequest request = PaymentCreateRequest.builder()
-    //                 .transactionAmount(pedido.getTotal())
-    //                 .token(dto.token())
-    //                 .issuerId(dto.issuerId())
-    //                 .description("Pedido #" + pedido.getId())
-    //                 .installments(parcelaReal)
-    //                 .paymentMethodId(dto.paymentMethodId())
-    //                 .payer(PaymentPayerRequest.builder().email(dto.email()).build())
-    //                 .build();
-
-    //         Map<String, String> headers = new HashMap<>();
-    //         headers.put("X-Idempotency-Key", pedidoId.toString() + "-" + dto.token().substring(0,5));
-
-    //         MPRequestOptions options = MPRequestOptions.builder()
-    //             .customHeaders(headers)
-    //             .build();
-
-    //         Payment payment = client.create(request, options);
-
-    //         String mercadoPagoId = payment.getId().toString();
-    //         String tipoPagamentoMP = payment.getPaymentTypeId();
-
-    //         Pagamento pagamento = pagamentoRepository.findByPedidoId(pedidoId)
-    //             .orElse(new Pagamento());
-
-    //         pagamento.setPedido(pedido);
-    //         pagamento.setGateway(GatewayPagamento.MERCADO_PAGO);
-    //         pagamento.setValor(pedido.getTotal());
-    //         pagamento.setTransacaoGatewayId(mercadoPagoId);
-
-    //         if ("debit_card".equalsIgnoreCase(tipoPagamentoMP)) {
-    //             pagamento.setFormaPagamento(FormaPagamento.CARTAO_DEBITO);
-    //         } else {
-    //             pagamento.setFormaPagamento(FormaPagamento.CARTAO_CREDITO);
-    //         }
-
-    //         if ("approved".equalsIgnoreCase(payment.getStatus())) {
-                
-    //             aprovarPagamentoCompleto(pagamento);
-            
-    //         } else {
-    //             pagamento.setStatus(StatusPagamento.PENDENTE);
-    //             pagamentoRepository.save(pagamento);
-    //             System.out.println("PAGAMENTO VIA CARTÃO AGUARDANDO: ID " + mercadoPagoId);
-    //         }
-
-    //         return new CartaoPagamentoResponseDTO(
-    //             payment.getStatus(),
-    //             payment.getStatusDetail()
-    //         );
-            
-    //     } catch (MPApiException e) {
-    //         System.err.println("Erro API Mercado Pago:");
-    //         String content = e.getApiResponse().getContent();
-    //         System.err.println("Detalhes: " + content);
-    //         throw new RuntimeException("Erro Mercado Pago: " + content, e);
-        
-    //     } catch (MPException e) {
-    //         throw new RuntimeException("Erro geral Mercado Pago", e);
-    //     }
-    // }
-
     @Transactional
     public CartaoPagamentoResponseDTO criarPagamentoCartao(Long pedidoId, CartaoPagamentoRequestDTO dto) {
 
@@ -312,6 +228,14 @@ public class PagamentoService {
             System.out.println("Installments: " + dto.installments());
             System.out.println("Email Payer: " + dto.email());
 
+            String documentoLimpo = dto.cpf() != null ? dto.cpf().replaceAll("\\D", "") : "";
+
+            if (documentoLimpo.isEmpty()) {
+                throw new RuntimeException("O CPF ou CNPJ do pagador é obrigatório para processar o pagamento.");
+            }
+
+            String tipoDocumento = documentoLimpo.length() > 11 ? "CNPJ" : "CPF";
+
             // 1. Configuração da Requisição
             PaymentCreateRequest request = PaymentCreateRequest.builder()
                 .transactionAmount(pedido.getTotal())
@@ -322,8 +246,8 @@ public class PagamentoService {
                 .payer(PaymentPayerRequest.builder()
                     .email(dto.email())
                     .identification(IdentificationRequest.builder()
-                        .type("CPF")
-                        .number("12345678909") // CPF de teste padrão MP
+                        .type(tipoDocumento)
+                        .number(documentoLimpo) // CPF de teste padrão MP
                         .build())
                     .build())
                 .build();
