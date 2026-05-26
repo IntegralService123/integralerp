@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.integral_erp.pagamento.dto.BoletoRequestDTO;
 import com.example.integral_erp.pagamento.dto.BoletoResponseDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoRequestDTO;
 import com.example.integral_erp.pagamento.dto.CartaoPagamentoResponseDTO;
@@ -56,12 +57,12 @@ public class PagamentoController {
     }
 
     @PostMapping("/{pedidoId}/boleto")
-    public BoletoResponseDTO gerarBoleto(@PathVariable Long pedidoId) {
+    public BoletoResponseDTO gerarBoleto(@PathVariable Long pedidoId, @RequestBody BoletoRequestDTO dto) {
         
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
         
-        return pagamentoService.criarPagamentoBoleto(pedido);    
+        return pagamentoService.criarPagamentoBoleto(pedido, dto);
     }
     
 
