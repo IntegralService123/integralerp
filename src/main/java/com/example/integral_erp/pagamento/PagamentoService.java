@@ -127,18 +127,6 @@ public class PagamentoService {
             body.put("transaction_amount", pedido.getTotal());
             body.put("description", "Pedido #" + pedido.getId());
             body.put("payment_method_id", "pix");
-            //body.put("date_of_expiration", dateExpiration);
-
-            // Map<String, Object> payer = new HashMap<>();
-            // // Force e-mail minúsculo e sem espaços
-            // payer.put("email", "test_user_123@testuser.com"); 
-            // payer.put("first_name", "Joao"); // Evite acentos por segurança
-            // payer.put("last_name", "Silva");
-
-            // Map<String, Object> identification = new HashMap<>();
-            // identification.put("type", "CPF");
-            // identification.put("number", "19119119100"); // CPF padrão de teste
-            // payer.put("identification", identification);
 
             Map<String, Object> payer = new HashMap<>();
             payer.put("email", (emailPagador != null && !emailPagador.isBlank()) 
@@ -474,6 +462,53 @@ public class PagamentoService {
         address.put("city", "Osasco");
         address.put("federal_unit", "SP");
         return address;
+    }
+
+    @Transactional
+    public void cancelarPagamentoNoGateway(Long pedidoId) {
+        Optional<Pagamento> pagamentoOpt = pagamentoRepository.findByPedidoId(pedidoId);
+
+        if (pagamentoOpt.isPresent()) {
+            Pagamento pagamento = pagamentoOpt.get();
+
+            // Só faz sentido cancelar no gateway se ainda estiver PENDENTE de pagamento
+            if (StatusPagamento.PENDENTE.equals(pagamento.getStatus())) {
+                
+                // Se tiver um ID do Mercado Pago salvo, avisa o gateway para cancelar
+                if (pagamento.getTransacaoGatewayId() != null && !pagamento.getTransacaoGatewayId().isBlank()) {
+                    try {
+                        System.out.println("Cancelando transação #" + pagamento.getTransacaoGatewayId() + " no Mercado Pago via API HTTP...");
+
+                        String url = "https://api.mercadopago.com/v1/payments/" + pagamento.getTransacaoGatewayId();
+                        String accessToken = properties.getAccessToken();
+
+                        RestTemplate restTemplate = new RestTemplate();
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_JSON);
+                        headers.setBearerAuth(accessToken);
+
+                        // Corpo da requisição dizendo que o novo status é cancelado
+                        Map<String, Object> body = new HashMap<>();
+                        body.put("status", "cancelled");
+
+                        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+                        // A API do Mercado Pago exige um PUT para atualizar o status do pagamento
+                        restTemplate.put(url, entity);
+                        
+                        System.out.println("Transação cancelada com sucesso no Mercado Pago.");
+
+                    } catch (Exception e) {
+                        // Loga o erro, mas não trava o banco local caso o Pix já tenha expirado no MP
+                        System.err.println("Aviso: Não foi possível cancelar no Mercado Pago: " + e.getMessage());
+                    }
+                }
+
+                // Atualiza o status do pagamento local para CANCELADO
+                pagamento.setStatus(StatusPagamento.CANCELADO);
+                pagamentoRepository.save(pagamento);
+            }
+        }
     }
 
     public PagamentoStatusDTO buscarStatus(Long pedidoId) {

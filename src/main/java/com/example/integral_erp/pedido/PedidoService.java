@@ -205,6 +205,29 @@ public class PedidoService {
     	return toResponse(pedido);
 	}
 
+    @Transactional
+    public PedidoResponseDTO cancelarPedido(Long id) {
+        Long usuarioId = SecurityUtils.getUsuarioId();
+
+        // 1. Busca o pedido garantindo que ele pertence ao usuário logado
+        Pedido pedido = pedidoRepository.findByIdAndUsuarioId(id, usuarioId)
+                .orElseThrow(() -> new RuntimeException("Pedido não encontrado ou não pertence a este usuário."));
+
+        // 2. Trava de segurança: só cancela se estiver aguardando pagamento
+        if (pedido.getStatus() != StatusPedido.AGUARDANDO_PAGAMENTO) {
+            throw new RuntimeException("Este pedido não pode mais ser cancelado por você.");
+        }
+
+        // 3. Atualiza os status no banco de dados local
+        pedido.setStatus(StatusPedido.CANCELADO);
+        pedidoRepository.save(pedido);
+
+        // 4. Cancela a cobrança no Mercado Pago e atualiza o registro do pagamento local
+        pagamentoService.cancelarPagamentoNoGateway(pedido.getId());
+
+        return toResponse(pedido);
+    }
+
     // ========================
     // MAPPERS
     // ========================
